@@ -97,7 +97,7 @@ namespace mpv{
 		else return n<0? -n : n;
 	}
 	template<size_t Precision=1000000000000>
-	double sqrt(double radicand){
+	constexpr double sqrt(double radicand){
 		bool inverse=false;
 		if(radicand<1){
 			radicand=1/radicand;
@@ -120,17 +120,17 @@ namespace mpv{
 		}
 	}
     template<typename T,size_t Precision=100000000000000>
-    bool is_zero(T v){
+    constexpr bool is_zero(T v){
 		//if constexpr(is_floating_point_v<T>) return v>=0? v<1e-15 : v>-1e-15;
 		if constexpr(is_floating_point_v<T>) return v>=0? v<1./Precision : v>-1./Precision;
 		else return v==0;
     }
 	template<typename T>
-	signed char minus1pow(T e){
+	constexpr signed char minus1pow(T e){
 		return e%2==0? 1 : -1;
 	}
 	template<typename T>
-	bool get_bit(unsigned n,T v){
+	constexpr bool get_bit(unsigned n,T v){
 		v<<=n;
 		v>>=n+sizeof(T)*8-1-n;
 		v<<=sizeof(T)*8-1-n;
