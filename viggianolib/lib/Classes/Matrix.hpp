@@ -23,7 +23,7 @@ namespace mpv{
             Matrix operator-(const Matrix& other)const{
                 Matrix new_matrix;
                 for(size_t i=0;i<R;i++){
-                    new_matrix[i]=(*this)[i]+other[i];
+                    new_matrix[i]=(*this)[i]-other[i];
                 }
                 return new_matrix;
             }

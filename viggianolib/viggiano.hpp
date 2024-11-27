@@ -121,13 +121,20 @@ namespace mpv{
 	}
     template<typename T,size_t Precision=100000000000000>
     bool is_zero(T v){
-		//if(is_floating_point_v<T>) return v>=0? v<1e-15 : v>-1e-15;
-		if(is_floating_point_v<T>) return v>=0? v<1./Precision : v>-1./Precision;
+		//if constexpr(is_floating_point_v<T>) return v>=0? v<1e-15 : v>-1e-15;
+		if constexpr(is_floating_point_v<T>) return v>=0? v<1./Precision : v>-1./Precision;
 		else return v==0;
     }
 	template<typename T>
 	signed char minus1pow(T e){
 		return e%2==0? 1 : -1;
+	}
+	template<typename T>
+	bool get_bit(unsigned n,T v){
+		v<<=n;
+		v>>=n+sizeof(T)*8-1-n;
+		v<<=sizeof(T)*8-1-n;
+		return v;
 	}
 }
 

@@ -1,7 +1,7 @@
 #pragma once
 #include"../arrays.hpp"
-#ifndef VECTOR_MMS
-#define VECTOR_MMS 64
+#ifndef VECTOR_MMS 
+#define VECTOR_MMS 64 //min max_size
 #endif
 namespace mpv{
     template<typename T,typename Alloc=allocator<T>,typename realloc_params=params<typename allocator_traits<Alloc>::template rebind_traits<T>::size_type,VECTOR_MMS,2>>
@@ -258,7 +258,7 @@ namespace mpv{
                 return new_vec;
             }
             Vector operator+(Vector&& other)const&{
-                //if(this==&other) return *this+other;     //shouldn't add an object with an rvalue ref to itself
+                //if(this==&other) return *this+other;     //not nessesary, shouldn't add an object with an rvalue ref to itself
                 Vector new_vec;
                 new_vec.size=this->size+other.size;
                 if constexpr(not ALWAYS_EQ and not POCMA){
@@ -469,7 +469,7 @@ namespace mpv{
             template<typename... Args>
             void emplace_back(Args&&... args){
                 if(size==maxSize){//si no tiene espacio para ningun elemento mas
-                    size_type new_maxSize = maxSize==0 ? min_maxSize : maxSize*realloc_factor;
+                    size_type new_maxSize = maxSize==0 ? min_maxSize : (maxSize+1)*realloc_factor;
                     pointer new_array=AlTy_traits::allocate(this->get_val(), new_maxSize);
                     al::memmoveconstruct(this->get_val(),new_array,array,size);
                     this->destroy_and_free();
@@ -480,7 +480,7 @@ namespace mpv{
             }
             void append(const_reference data){
                 if(size==maxSize){//si no tiene espacio para ningun elemento mas
-                    size_type new_maxSize = maxSize==0 ? min_maxSize : maxSize*realloc_factor;
+                    size_type new_maxSize = maxSize==0 ? min_maxSize : (maxSize+1)*realloc_factor;
                     pointer new_array=AlTy_traits::allocate(this->get_val(),new_maxSize);
                     al::memmoveconstruct(this->get_val(),new_array,array,size);
                     this->destroy_and_free();
@@ -491,7 +491,7 @@ namespace mpv{
             }
             void append(value_type&& data){
                 if(size==maxSize){//si no tiene espacio para ningun elemento mas
-                    size_type new_maxSize = maxSize==0 ? min_maxSize : maxSize*realloc_factor;
+                    size_type new_maxSize = maxSize==0 ? min_maxSize : (maxSize+1)*realloc_factor;
                     pointer new_array=AlTy_traits::allocate(this->get_val(), new_maxSize);
                     al::memmoveconstruct(this->get_val(),new_array,array,size);
                     this->destroy_and_free();
@@ -516,7 +516,7 @@ namespace mpv{
             template<typename... Args>
             void emplace(size_type index,Args&&... args){
                 if(size==maxSize){
-                    size_type new_maxSize = maxSize==0 ? min_maxSize : maxSize*realloc_factor;
+                    size_type new_maxSize = maxSize==0 ? min_maxSize : (maxSize+1)*realloc_factor;
                     pointer new_array=AlTy_traits::allocate(this->get_val(),new_maxSize);
                     al::memmoveconstruct(this->get_val(),new_array,array,index);
                     al::memmoveconstruct(this->get_val(),new_array+index+1,array+index,size-index);
@@ -538,7 +538,7 @@ namespace mpv{
             }
             void insert(size_type index,const_reference data){
                 if(size==maxSize){
-                    size_type new_maxSize = maxSize==0 ? min_maxSize : maxSize*realloc_factor;
+                    size_type new_maxSize = maxSize==0 ? min_maxSize : (maxSize+1)*realloc_factor;
                     pointer new_array=AlTy_traits::allocate(this->get_val(),new_maxSize);
                     al::memmoveconstruct(this->get_val(),new_array,array,index);
                     al::memmoveconstruct(this->get_val(),new_array+index+1,array+index,size-index);
@@ -560,7 +560,7 @@ namespace mpv{
             }
             void insert(size_type index,value_type&& data){
                 if(size==maxSize){
-                    size_type new_maxSize = maxSize==0 ? min_maxSize : maxSize*realloc_factor;
+                    size_type new_maxSize = maxSize==0 ? min_maxSize : (maxSize+1)*realloc_factor;
                     pointer new_array=AlTy_traits::allocate(this->get_val(),new_maxSize);
                     al::memmoveconstruct(this->get_val(),new_array,array,index);
                     al::memmoveconstruct(this->get_val(),new_array+index+1,array+index,size-index);

@@ -73,7 +73,7 @@ namespace mpv{
 			pointer heap;
 		};
 		private:
-		/*size no puede ser >= a ss_cap por sin tener que asignar memoria, una vez que se esta usando memoria dinamica
+		/*size no puede ser >= a ss_cap sin tener que asignar memoria, una vez que se esta usando memoria dinamica
 		size debe se siempre <= a maxSize (puede llegar a ser igual a maxSize porque maxSize no cuenta el \0
 											como un lugar, en cambio ss_cap si) */
 			size_type size;// Es el tamaanio del string, sin tener en cuenta el '\0'
