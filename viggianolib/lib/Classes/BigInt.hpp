@@ -1,3 +1,4 @@
+#pragma once
 namespace mpv{
 #define POS 0
 #define NEG 1
