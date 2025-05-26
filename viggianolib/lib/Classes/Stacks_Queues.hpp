@@ -1,16 +1,15 @@
 #pragma once
 namespace mpv{
 	template<typename T,typename VoidPtr>
-	struct Node COUNT_IT{
-		using NodePtr=rebind_pointer<VoidPtr,Node>;
-		using const_NodePtr=rebind_pointer<VoidPtr,const Node>;
-		NodePtr next{};
+	struct Basic_Node COUNT_IT{
+		using NodePtr=rebind_pointer<VoidPtr,Basic_Node>;
+		using const_NodePtr=rebind_pointer<VoidPtr,const Basic_Node>;
+		NodePtr next=nullptr;
 		T data;
 		template<typename... Args>
-		Node(Args&&... args):data(static_cast<Args&&>(args)...){}
-		Node(const Node&)=delete;
-		Node(Node&&)=delete;
-
+		Basic_Node(Args&&... args):data(static_cast<Args&&>(args)...){}
+		Basic_Node(const Basic_Node&)=delete;
+		Basic_Node& operator=(const Basic_Node&)=delete;
 	};
 	template<typename Types>
 	class Node_iterator{
@@ -28,7 +27,7 @@ namespace mpv{
 				return ptr->data;
 			}
 			pointer operator->(){
-				return &(ptr->data);
+				return pointer_traits<pointer>::pointer_to(ptr->data);
 			}
 			Node_iterator& operator++(){
 				ptr=ptr->next;
@@ -64,7 +63,7 @@ namespace mpv{
 				return ptr->data;
 			}
 			pointer operator->(){
-				return &(ptr->data);
+				return pointer_traits<pointer>::pointer_to(ptr->data);
 			}
 			const_Node_iterator& operator++(){
 				ptr=ptr->next;
@@ -83,9 +82,9 @@ namespace mpv{
 			}
 	};
 	template<typename T,typename Alloc=allocator<T>>
-	class Queue:EBCO<rebind_alloc<Alloc,Node<T,typename allocator_traits<Alloc>::void_pointer>>> COUNT_IT_{
+	class Queue:EBCO<rebind_alloc<Alloc,Basic_Node<T,typename allocator_traits<Alloc>::void_pointer>>> COUNT_IT_{
 		private:
-			using Node=Node<T,typename allocator_traits<Alloc>::void_pointer>;
+			using Node=Basic_Node<T,typename allocator_traits<Alloc>::void_pointer>;
 			using NodePtr=typename Node::NodePtr;
 			using const_NodePtr=typename Node::const_NodePtr;
 			using AlTy=rebind_alloc<Alloc,T>;
@@ -119,16 +118,16 @@ namespace mpv{
 			using iterator=Node_iterator<Val_types>;
 			using const_iterator=const_Node_iterator<Val_types>;
 		private:
-			NodePtr head{};
-			NodePtr tail{};
+			NodePtr head=nullptr;
+			NodePtr tail=nullptr;
 			inline void delete_node(NodePtr node){
-				AlNode_traits::destroy(this->get_val(),node);
+				/* AlNode_traits::destroy */DESTROY(this->get_val(),node);
 				AlNode_traits::deallocate(this->get_val(),node,1);
 			}
 			template<typename... Args>
 			inline NodePtr create_node(Args&&... args){
 				NodePtr p=AlNode_traits::allocate(this->get_val(),1);
-				AlNode_traits::construct(this->get_val(),p,static_cast<Args&&>(args)...);
+				/* AlNode_traits::construct */CONSTRUCT_VARARGS(this->get_val(),p,static_cast<Args&&>(args));
 				return p;
 			}
 			inline void reset(){
@@ -177,18 +176,18 @@ namespace mpv{
 				other.reset();
 			}
 		public:
-			Queue(){INCQUEUES}
-			explicit Queue(const Alloc& al):EBCO<AlNode>(al){INCQUEUES}
-			Queue(const Queue& other):EBCO<AlNode>(AlNode_traits::select_on_container_copy_construction(other.get_val())){INCQUEUES
+			Queue()=default;
+			explicit Queue(const Alloc& al):EBCO<AlNode>(al){}
+			Queue(const Queue& other):EBCO<AlNode>(AlNode_traits::select_on_container_copy_construction(other.get_val())){
 				this->copy_elements(other);
 			}
-			Queue(const Queue& other,const Alloc& al):EBCO<AlNode>(al){INCQUEUES
+			Queue(const Queue& other,const Alloc& al):EBCO<AlNode>(al){
 				this->copy_elements(other);
 			}
-			Queue(Queue&& other):EBCO<AlNode>(static_cast<AlNode&&>(other.get_val())),head(other.head),tail(other.tail){INCQUEUES
+			Queue(Queue&& other):EBCO<AlNode>(static_cast<AlNode&&>(other.get_val())),head(other.head),tail(other.tail){
 				other.reset();
 			}
-			Queue(Queue&& other,const Alloc& al):EBCO<AlNode>(al){INCQUEUES
+			Queue(Queue&& other,const Alloc& al):EBCO<AlNode>(al){
 				if(this->get_val()==other.get_val()){
 					head=other.head;
 					tail=other.tail;
@@ -211,15 +210,17 @@ namespace mpv{
 				}
 			}
 			Queue& operator=(const Queue& other){
+				if(this==&other) return *this;
 				this->clear();
-				if constexpr(POCCA and not ALWAYS_EQ)
+				if constexpr(POCCA && !ALWAYS_EQ)
 					this->get_val()=other.get_val();
 				this->copy_elements(other);
 				return *this;
 			}
 			Queue& operator=(Queue&& other){
+				if(this==&other) return *this;
 				this->clear();
-				if constexpr(not ALWAYS_EQ and not POCMA){
+				if constexpr(!ALWAYS_EQ && !POCMA){
 					if(this->get_val()!=other.get_val()){
 						this->copy_elements(static_cast<Queue&&>(other));
 						return *this;
@@ -232,7 +233,7 @@ namespace mpv{
 			template<typename... Args>
 			void emplace(Args&&... args){
 				NodePtr new_node=AlNode_traits::allocate(this->get_val(),1);
-				AlNode_traits::construct(this->get_val(),new_node,static_cast<Args&&>(args)...);
+				/* AlNode_traits::construct */CONSTRUCT_VARARGS(this->get_val(),new_node,static_cast<Args&&>(args));
 				if(this->head==nullptr)
 					this->head=new_node;	
 				else
@@ -241,7 +242,7 @@ namespace mpv{
 			}
 			void push(const_reference dat){
 				NodePtr new_node=AlNode_traits::allocate(this->get_val(),1);
-				AlNode_traits::construct(this->get_val(),new_node,dat);
+				/* AlNode_traits::construct */CONSTRUCT(this->get_val(),new_node,dat);
 				if(this->head==nullptr)
 					this->head=new_node;	
 				else
@@ -250,7 +251,7 @@ namespace mpv{
 			}
 			void push(value_type&& dat){
 				NodePtr new_node=AlNode_traits::allocate(this->get_val(),1);
-				AlNode_traits::construct(this->get_val(),new_node,static_cast<value_type&&>(dat));
+				/* AlNode_traits::construct */CONSTRUCT(this->get_val(),new_node,static_cast<value_type&&>(dat));
 				if(this->head==nullptr)
 					this->head=new_node;	
 				else
@@ -300,7 +301,6 @@ namespace mpv{
 					this->head=this->head->next;
 					delete_node(aux);
 				}
-				DECQUEUES
 			}
 			iterator begin(){
 				return iterator(head);
@@ -332,9 +332,9 @@ namespace mpv{
 		return stream<<']';
 	}
 	template<typename T,typename Alloc=allocator<T>>
-	class Stack:EBCO<rebind_alloc<Alloc,Node<T,typename allocator_traits<Alloc>::void_pointer>>> COUNT_IT_{
+	class Stack:EBCO<rebind_alloc<Alloc,Basic_Node<T,typename allocator_traits<Alloc>::void_pointer>>> COUNT_IT_{
 		private:
-			using Node=Node<T,typename allocator_traits<Alloc>::void_pointer>;
+			using Node=Basic_Node<T,typename allocator_traits<Alloc>::void_pointer>;
 			using NodePtr=typename Node::NodePtr;
 			using const_NodePtr=typename Node::const_NodePtr;
 			using AlTy=rebind_alloc<Alloc,T>;
@@ -368,15 +368,15 @@ namespace mpv{
 			using iterator=Node_iterator<Val_types>;
 			using const_iterator=const_Node_iterator<Val_types>;
 		private:
-			NodePtr head{};
+			NodePtr head=nullptr;
 			inline void delete_node(NodePtr node){
-				AlNode_traits::destroy(this->get_val(),node);
+				/* AlNode_traits::destroy */DESTROY(this->get_val(),node);
 				AlNode_traits::deallocate(this->get_val(),node,1);
 			}
 			template<typename... Args>
 			inline NodePtr create_node(Args&&... args){
 				NodePtr new_node=AlNode_traits::allocate(this->get_val(),1);
-				AlNode_traits::construct(this->get_val(),new_node,static_cast<Args&&>(args)...);
+				/* AlNode_traits::construct */CONSTRUCT_VARARGS(this->get_val(),new_node,static_cast<Args&&>(args));
 				return new_node;
 			}
 			inline void copy_elements(const Stack& other){
@@ -405,18 +405,18 @@ namespace mpv{
 				}				
 			}
 		public:
-			Stack(){INCSTACKS}
-			explicit Stack(const Alloc& al):EBCO<AlNode>(al){INCSTACKS}
-			Stack(const Stack& other):EBCO<AlNode>(AlNode_traits::select_on_container_copy_construction(other.get_val())){INCSTACKS
+			Stack()=default;
+			explicit Stack(const Alloc& al):EBCO<AlNode>(al){}
+			Stack(const Stack& other):EBCO<AlNode>(AlNode_traits::select_on_container_copy_construction(other.get_val())){
 				this->copy_elements(other);
 			}
-			Stack(const Stack& other,const Alloc& al):EBCO<AlNode>(al){INCSTACKS
+			Stack(const Stack& other,const Alloc& al):EBCO<AlNode>(al){
 				this->copy_elements(other);
 			}
-			Stack(Stack&& other):EBCO<AlNode>(static_cast<AlNode&&>(other.get_val())),head(other.head){INCSTACKS
+			Stack(Stack&& other):EBCO<AlNode>(static_cast<AlNode&&>(other.get_val())),head(other.head){
 				other.head=nullptr;
 			}
-			Stack(Stack&& other,const Alloc& al):EBCO<AlNode>(al){INCSTACKS
+			Stack(Stack&& other,const Alloc& al):EBCO<AlNode>(al){
 				if(this->get_val()==other.get_val()){
 					this->head=other.head;
 					other.head=nullptr;
@@ -425,15 +425,17 @@ namespace mpv{
 					this->copy_elements(static_cast<Stack&&>(other));
 			}
 			Stack& operator=(const Stack& other){
+				if(this==&other) return *this;
 				this->clear();
-				if constexpr(POCCA and not ALWAYS_EQ)
+				if constexpr(POCCA && !ALWAYS_EQ)
 					this->get_val()=other.get_val();
 				this->copy_elements(other);
 				return *this;
 			}
 			Stack& operator=(Stack&& other){
+				if(this==&other) return *this;
 				this->clear();
-				if constexpr(not ALWAYS_EQ and not POCMA){
+				if constexpr(!ALWAYS_EQ && !POCMA){
 					if(this->get_val()!=other.get_val()){
 						this->copy_elements(static_cast<Stack&&>(other));
 						return *this;
@@ -490,7 +492,6 @@ namespace mpv{
 			}
 			~Stack(){
 				clear();
-				DECSTACKS
 			}
 			iterator begin(){
 				return iterator(head);

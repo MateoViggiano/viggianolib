@@ -114,12 +114,5 @@ namespace mpv{
             }
 #endif
     };
-#if defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_)
-    std::ostream& operator<<(std::ostream& stream,const BitList& bits){
-        stream<<bits.get_bit_count();
-        for(long i=0;i<bits.get_size();i++)
-            stream<<bits[i];
-        return stream;
-    }
-#endif
+
 }

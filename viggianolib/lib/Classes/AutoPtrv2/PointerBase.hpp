@@ -35,25 +35,25 @@ namespace mpv{
 				return this->data>other.get();
 			}
 			bool operator==(decltype(nullptr))const{
-				return this->data==Tp();
+				return this->data==nullptr;
 			}
 			bool operator!=(decltype(nullptr))const{
-				return this->data!=Tp();
+				return this->data!=nullptr;
 			}
 			bool operator<=(decltype(nullptr))const{
-				return this->data<=Tp();
+				return this->data<=nullptr;
 			}
 			bool operator>=(decltype(nullptr))const{
-				return this->data>=Tp();
+				return this->data>=nullptr;
 			}
 			bool operator< (decltype(nullptr))const{
-				return this->data<Tp();
+				return this->data<nullptr;
 			}
 			bool operator> (decltype(nullptr))const{
-				return this->data>Tp();
+				return this->data>nullptr;
 			}
 			operator bool()const{
-				return data!=Tp();
+				return data!=nullptr;
 			}
     };
 	template<typename T,typename Tp=remove_extent_t<T>*>

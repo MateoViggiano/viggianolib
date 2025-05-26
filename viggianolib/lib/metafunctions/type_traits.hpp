@@ -50,19 +50,6 @@ namespace mpv{
     template<typename T> struct is_empty:bool_constant<is_empty_v<T>>{};
     template<typename T> constexpr bool is_final_v=__is_final(T);
     template<typename T> struct is_final:bool_constant<is_final_v<T>>{};
-    template<typename T,typename... Args> constexpr bool is_trivially_constructible_v=__is_trivially_constructible(T,Args...);
-    template<typename T,typename... Args> struct is_trivially_constructible:bool_constant<is_trivially_constructible_v<T,Args...>>{};
-    template<typename T,typename U> constexpr bool is_trivially_assignable_v=__is_trivially_assignable(T,U);
-    template<typename T,typename U> struct is_trivially_assignable:bool_constant<is_trivially_assignable_v<T,U>>{};
-    template<typename T> constexpr bool is_trivially_copy_constructible_v=is_trivially_constructible_v<T,add_lvalue_reference_t<const T>>;
-    template<typename T> struct is_trivially_copy_constructible:bool_constant<is_trivially_copy_constructible_v<T>>{};
-    template<typename T> constexpr bool is_trivially_copy_assignable_v=is_trivially_assignable_v<add_lvalue_reference_t<T>,add_lvalue_reference_t<const T>>;
-    template<typename T> struct is_trivially_copy_assignable:bool_constant<is_trivially_copy_assignable_v<T>>{};
-    template<typename T> constexpr bool is_trivially_move_constructible_v=is_trivially_constructible_v<T,T>;
-    template<typename T> struct is_trivially_move_constructible:bool_constant<is_trivially_move_constructible_v<T>>{};
-    template<typename T> constexpr bool is_trivially_move_assignable_v=is_trivially_assignable_v<add_lvalue_reference_t<T>,T>;
-    template<typename T> struct is_trivially_move_assignable:bool_constant<is_trivially_move_assignable_v<T>>{};
-
     template<typename T> struct remove_reference{
         using type=T;
     };
@@ -147,6 +134,20 @@ namespace mpv{
     template<typename T>
     using remove_extent_t=typename remove_extent<T>::type;
 
+    template<typename T>
+    struct remove_all_extents{
+        using type=T;
+    };
+    template<typename T>
+    struct remove_all_extents<T[]>{
+        using type=typename remove_all_extents<T>::type;
+    };
+    template<typename T, size_t N>
+    struct remove_all_extents<T[N]>{
+        using type=typename remove_all_extents<T>::type;
+    };
+    template<typename T>
+    using remove_all_extents_t=typename remove_all_extents<T>::type;
 
     template<typename T>
     struct remove_array_size{
@@ -224,11 +225,11 @@ namespace mpv{
     template<typename T> struct is_floating_point:is_floating_point__<remove_cv_t<T>>::type{};
     template<typename T> constexpr bool is_floating_point_v=is_floating_point<T>::value;
 
-    template<typename T> constexpr bool is_arithmetic_v=is_integral_v<T> or is_floating_point_v<T>;
+    template<typename T> constexpr bool is_arithmetic_v=is_integral_v<T> || is_floating_point_v<T>;
     template<typename T> struct is_arithmetic:bool_constant<is_arithmetic_v<T>>{};
 
     template<typename T,typename... Args> struct are_same:true_type{};
-	template<typename T,typename U,typename... Args> struct are_same<T,U,Args...>   :bool_constant<is_same_v<T,U> and are_same<U,Args...>::value>{};
+	template<typename T,typename U,typename... Args> struct are_same<T,U,Args...>   :bool_constant<is_same_v<T,U> && are_same<U,Args...>::value>{};
     template<typename T,typename... Args> constexpr bool are_same_v=are_same<T,Args...>::value;
 
 
@@ -245,7 +246,7 @@ namespace mpv{
     template<typename T> struct is_rvalue_ref<T&&>  :true_type{};
     template<typename T> constexpr bool is_rvalue_ref_v=is_rvalue_ref<T>::value;
 
-    template<typename T> struct is_reference:bool_constant<is_lvalue_ref_v<T> or is_rvalue_ref_v<T>>{};
+    template<typename T> struct is_reference:bool_constant<is_lvalue_ref_v<T> || is_rvalue_ref_v<T>>{};
     template<typename T> constexpr bool is_reference_v=is_reference<T>::value;
 
     
@@ -280,7 +281,7 @@ namespace mpv{
     template<typename T> constexpr bool is_array_v=is_array<T>::value;
 
 
-    template<typename T,typename U>          struct have_same_extent           :bool_constant<not(is_array_v<T> or is_array_v<U>)>{};
+    template<typename T,typename U>          struct have_same_extent           :bool_constant<!(is_array_v<T> || is_array_v<U>)>{};
     template<typename T,typename U>          struct have_same_extent<T[],U[]>  :true_type{};
     template<typename T,typename U,size_t N> struct have_same_extent<T[N],U[N]>:true_type{};
     template<typename T,typename U> constexpr bool have_same_extent_v=have_same_extent<T,U>::value;
@@ -374,7 +375,7 @@ namespace mpv{
     };
     template<typename T> using Make_Unsigned_Helper_t=typename Make_Unsigned_Helper<sizeof(T)>::template Apply<T>;
     template<typename T> struct make_unsigned{
-        static_assert(is_enum_v<T> || (is_integral_v<T> and not is_bool_v<T>),"template parameter must be a non bool integer or an enum");
+        static_assert(is_enum_v<T> || (is_integral_v<T> && !is_bool_v<T>),"template parameter must be a non bool integer or an enum");
         using type=rebind_cv_t<T,Make_Unsigned_Helper_t<remove_cv_t<T>>>;
     };
     template<typename T> using make_unsigned_t=typename make_unsigned<T>::type;
@@ -394,7 +395,7 @@ namespace mpv{
     };
     template<typename T> using Make_Signed_Helper_t=typename Make_Signed_Helper<sizeof(T)>::template Apply<T>;
     template<typename T> struct make_signed{
-        static_assert(is_enum_v<T> || (is_integral_v<T> and not is_bool_v<T>),"template parameter must be a non bool integer or an enum");
+        static_assert(is_enum_v<T> || (is_integral_v<T> && !is_bool_v<T>),"template parameter must be a non bool integer or an enum");
         using type=rebind_cv_t<T,Make_Signed_Helper_t<remove_cv_t<T>>>;
     };
     template<typename T> using make_signed_t=typename make_signed<T>::type;
@@ -403,14 +404,27 @@ namespace mpv{
         static constexpr bool Signed=false;
         static constexpr bool Unsigned=false;
     };
-    template<typename T> struct Sign<T,enable_if_t<is_integral_v<T> or is_floating_point_v<T>>>{
+    template<typename T> struct Sign<T,enable_if_t<is_integral_v<T> || is_floating_point_v<T>>>{
         static constexpr bool Signed=T(-1)<T(0);
-        static constexpr bool Unsigned=not Signed;
+        static constexpr bool Unsigned=!Signed;
     };
     template<typename T> struct is_unsigned:bool_constant<Sign<T>::Unsigned>{};
     template<typename T> constexpr bool is_unsigned_v=is_unsigned<T>::value;
     template<typename T> struct is_signed:bool_constant<Sign<T>::Signed>{};
     template<typename T> constexpr bool is_signed_v=is_signed<T>::value;
+
+    template<bool,size_t sz> struct double_size_helper;
+    template<bool isSigned> struct double_size_helper<isSigned,1>{using type=If_t<isSigned,signed short,unsigned short>;};
+    template<bool isSigned> struct double_size_helper<isSigned,2>{using type=If_t<isSigned,signed long,unsigned long>;};
+    template<bool isSigned> struct double_size_helper<isSigned,4>{using type=If_t<isSigned,signed long long,unsigned long long>;};
+    template<bool isSigned> struct double_size_helper<isSigned,8>{using type=If_t<isSigned,signed long long,unsigned long long>;};
+    template<typename T> struct double_size{
+        using type= If_t<is_floating_point_v<T>,
+                        If_t<sizeof(T)==4,double,long double>,
+                        typename double_size_helper<is_signed_v<T>,sizeof(T)>::type
+                    >;
+    };
+    template<typename T> using double_size_t=typename double_size<T>::type;
 
     template<typename T,typename U> struct rebind_array{
         using type=U;
@@ -437,7 +451,7 @@ namespace mpv{
     template<typename T> struct is_member_function_pointer:is_member_function_pointer__<remove_cv_t<T>>::type{};
     template<typename T> constexpr bool is_member_function_pointer_v=is_member_function_pointer<T>::value;
 
-    template<typename T> constexpr bool is_member_pointer_v=is_member_object_pointer_v<T> or is_member_function_pointer_v<T>;
+    template<typename T> constexpr bool is_member_pointer_v=is_member_object_pointer_v<T> || is_member_function_pointer_v<T>;
     template<typename T> struct is_member_pointer:bool_constant<is_member_pointer_v<T>>{};
 
 
@@ -545,7 +559,7 @@ namespace mpv{
             T* data;
         public:
             using type=T;
-            template<typename U,typename=enable_if_t<!is_same_v<reference_wrapper,remove_cvref_t<U>> and !is_rvalue_ref_v<U&&>>>
+            template<typename U,typename=enable_if_t<!is_same_v<reference_wrapper,remove_cvref_t<U>> && !is_rvalue_ref_v<U&&>>>
             reference_wrapper(U&& ref):data(&static_cast<U&&>(ref)){}
             reference_wrapper(const reference_wrapper&)=default;
             reference_wrapper& operator=(const reference_wrapper&)=default;
@@ -574,6 +588,46 @@ namespace mpv{
     constexpr remove_reference_t<T>&& move(T&& val)noexcept{
         return static_cast<remove_reference_t<T>&&>(val);
     }
+    template<typename T> struct decay{
+        using U=remove_reference_t<T>;
+        using type= If_t<is_array_v<U>,
+                        add_pointer_t<remove_extent_t<U>>,
+                        If_t<is_function_v<U>,
+                            add_pointer_t<U>,
+                            remove_cv_t<U>
+                        >
+                    >;
+    };
+    template<typename T> using decay_t=typename decay<T>::type;
+
+    template<typename T,typename... Args> constexpr bool is_trivially_constructible_v=__is_trivially_constructible(T,Args...);
+    template<typename T,typename... Args> struct is_trivially_constructible:bool_constant<is_trivially_constructible_v<T,Args...>>{};
+    template<typename T,typename U> constexpr bool is_trivially_assignable_v=__is_trivially_assignable(T,U);
+    template<typename T,typename U> struct is_trivially_assignable:bool_constant<is_trivially_assignable_v<T,U>>{};
+    template<typename T> constexpr bool is_trivially_copy_constructible_v=is_trivially_constructible_v<T,add_lvalue_reference_t<const T>>;
+    template<typename T> struct is_trivially_copy_constructible:bool_constant<is_trivially_copy_constructible_v<T>>{};
+    template<typename T> constexpr bool is_trivially_copy_assignable_v=is_trivially_assignable_v<add_lvalue_reference_t<T>,add_lvalue_reference_t<const T>>;
+    template<typename T> struct is_trivially_copy_assignable:bool_constant<is_trivially_copy_assignable_v<T>>{};
+    template<typename T> constexpr bool is_trivially_move_constructible_v=is_trivially_constructible_v<T,T>;
+    template<typename T> struct is_trivially_move_constructible:bool_constant<is_trivially_move_constructible_v<T>>{};
+    template<typename T> constexpr bool is_trivially_move_assignable_v=is_trivially_assignable_v<add_lvalue_reference_t<T>,T>;
+    template<typename T> struct is_trivially_move_assignable:bool_constant<is_trivially_move_assignable_v<T>>{};
+    template<typename T> constexpr bool is_trivially_default_constructible_v=is_trivially_constructible_v<T>;
+    template<typename T> struct is_trivially_default_constructible:bool_constant<is_trivially_default_constructible_v<T>>{};
+
+    template<typename T> constexpr bool is_trivially_copyable_v=__is_trivially_copyable(T);
+    template<typename T> struct is_trivially_copyable:bool_constant<is_trivially_copyable_v<T>>{};
+    template<typename T> constexpr bool is_trivial_v=is_trivially_copyable_v<T> && is_trivially_default_constructible_v<T>;
+    template<typename T> struct is_trivial:bool_constant<is_trivial_v<T>>{};
+
+    template<typename T> constexpr bool is_pod_v=__is_pod(T);
+    template<typename T> struct is_pod:bool_constant<is_pod_v<T>>{};
+
+    template<typename T,typename... Args> struct is_trivially_constructible_and_assignable:false_type{};
+    template<typename T> struct is_trivially_constructible_and_assignable<T>:is_trivially_default_constructible<T>{};
+    template<typename T,typename U> struct is_trivially_constructible_and_assignable<T,U>:bool_constant<is_trivially_constructible_v<T,U> && is_trivially_assignable_v<add_lvalue_reference_t<T>,U>>{};
+    template<typename T,typename... Args> constexpr bool is_trivially_constructible_and_assignable_v=is_trivially_constructible_and_assignable<T,Args...>::value;
+    
     template<typename T,typename=void> struct check_has_dtor:false_type{};
     template<typename T> struct check_has_dtor<T,void_t<decltype(declval<T&>().~T())>>:true_type{};
     template<typename T> struct is_destructible:
@@ -583,7 +637,7 @@ namespace mpv{
             If_t<is_reference_v<T> || is_scalar_v<T>,
                 true_type
                 ,
-                check_has_dtor<T>
+                check_has_dtor<remove_all_extents_t<T>>
             >
         >{};
     template<typename T> constexpr bool is_destructible_v=is_destructible<T>::value;
@@ -591,7 +645,7 @@ namespace mpv{
 #ifdef __clang__
     template<typename T> constexpr bool is_trivially_destructible_v=__is_trivially_destructible(T);
 #else
-    template<typename T> constexpr bool is_trivially_destructible_v=is_destructible_v<T> and __has_trivial_destructor(T);
+    template<typename T> constexpr bool is_trivially_destructible_v=is_destructible_v<T> && __has_trivial_destructor(T);
 #endif
     template<typename T> struct is_trivially_destructible:bool_constant<is_trivially_destructible_v<T>>{};
 
@@ -630,7 +684,7 @@ namespace mpv{
     template<typename T> using is_default_constructible=is_constructible<T>;
     template<typename T> constexpr bool is_default_constructible_v=is_default_constructible<T>::value;
     
-    struct is_assignable_impl{//esto no funciona como deberia
+    struct is_assignable_impl{//esto no funciona como deberia(no me acuerdo si lo arregle o no pero parece que funciona bien)
         template<typename T,typename U,typename=void> struct test_assignment:false_type{};
         template<typename T,typename U> struct test_assignment<T,U,void_t<decltype(declval<T>()=declval<U>())>>:true_type{};
     };
@@ -645,20 +699,16 @@ namespace mpv{
     template<typename T> struct is_move_constructible:bool_constant<is_move_constructible_v<T>>{};
     template<typename T> constexpr bool is_move_assignable_v=is_assignable_v<add_lvalue_reference_t<T>,T>;
     template<typename T> struct is_move_assignable:bool_constant<is_move_assignable_v<T>>{};
-    template<typename T> struct decay{
-        using U=remove_reference_t<T>;
-        using type= If_t<is_array_v<U>,
-                        add_pointer_t<remove_extent_t<U>>,
-                        If_t<is_function_v<U>,
-                            add_pointer_t<U>,
-                            remove_cv_t<U>
-                        >
-                    >;
-    };
-    template<typename T> using decay_t=typename decay<T>::type;
+
+
     template<typename T,typename=void> struct is_iterable:false_type{};
     template<typename T> struct is_iterable<T,void_t<decltype(declval<T>().begin()),decltype(declval<T>().end())>>:true_type{};
     template<typename T> constexpr bool is_iterable_v=is_iterable<T>::value;
+
+    template<typename I,bool=false,typename=void> struct elements_are_movable_helper:false_type{};
+    template<typename I> struct elements_are_movable_helper<I,true,void_t<decltype(static_cast<typename remove_reference_t<I>::value_type&&>(*(declval<I>().begin())))>>:true_type{};
+    template<typename I> struct elements_are_movable:elements_are_movable_helper<I,is_rvalue_ref_v<I>>::type{};
+    template<typename I> static constexpr bool elements_are_movable_v=elements_are_movable<I>::value;//checks if elements of an iterable class are movable
 
     template<typename T,typename=void> struct has_len:false_type{};
     template<typename T> struct has_len<T,void_t<decltype(declval<T>().len())>>:true_type{};

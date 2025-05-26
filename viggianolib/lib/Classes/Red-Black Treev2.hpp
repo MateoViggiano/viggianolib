@@ -12,7 +12,9 @@ namespace mpv{
         NodePtr right=nullptr;
         NodePtr prev=nullptr;
         RedOrBlack color;
-        Base_Tree_Node():color(BLACK){}
+        Base_Tree_Node()=delete;
+        Base_Tree_Node(const Base_Tree_Node&)=delete;
+        Base_Tree_Node& operator=(const Base_Tree_Node&)=delete;
         Base_Tree_Node(RedOrBlack color):color(color){}
     };
     template<typename T,typename VoidPtr>
@@ -101,10 +103,10 @@ namespace mpv{
                 return ptr->data;
             }
             pointer operator->(){
-                return &(ptr->data);
+                return pointer_traits<pointer>::pointer_to(ptr->data);
             }
             StackBased_Tree_iterator& operator++(){
-                if(ptr->right==nullptr and not stack.empty())
+                if(ptr->right==nullptr && !stack.empty())
                     ptr=stack.pop();
                 else if(ptr->right!=nullptr){
                     ptr=ptr->right;
@@ -113,13 +115,13 @@ namespace mpv{
                         ptr=ptr->left;
                     }
                 }
-                else //ptr->right==nullptr and stack->empty()
+                else //ptr->right==nullptr && stack->empty()
                     ptr=nullptr;
                 return *this;
             }
             StackBased_Tree_iterator operator++(int){
                 StackBased_Tree_iterator aux=*this;
-                if(ptr->right==nullptr and not stack.empty())
+                if(ptr->right==nullptr && !stack.empty())
                     ptr=stack.pop();
                 else if(ptr->right!=nullptr){
                     ptr=ptr->right;
@@ -128,7 +130,7 @@ namespace mpv{
                         ptr=ptr->left;
                     }
                 }
-                else //ptr->right==nullptr and stack->empty()
+                else //ptr->right==nullptr && stack->empty()
                     ptr=nullptr;
                 return aux;
             }
@@ -143,7 +145,7 @@ namespace mpv{
     template<typename NodePtr>
     inline NodePtr find_predecessor(NodePtr current){
         NodePtr p=current->left;
-        while(p->right!=nullptr and p->right!=current){
+        while(p->right!=nullptr && p->right!=current){
             p=p->right;
         }
         return p;
@@ -186,7 +188,7 @@ namespace mpv{
                 return ptr->data;
             }
             pointer operator->(){
-                return &(ptr->data);
+                return pointer_traits<pointer>::pointer_to(ptr->data);
             }
             Morris_Tree_iterator& operator++(){
                 while(current!=nullptr){
@@ -221,7 +223,7 @@ namespace mpv{
             ~Morris_Tree_iterator(){}
     };
     template<typename Types>
-    class Tree_iterator{
+    class Tree_iterator{//in order
 		public:
 			using NodePtr=typename Types::NodePtr;
 			using value_type=typename Types::value_type;
@@ -229,24 +231,27 @@ namespace mpv{
 			using pointer=typename Types::pointer;
 			using reference=typename Types::reference;
         private:
-            NodePtr ptr;
+            NodePtr ptr,root;
         public:
-            Tree_iterator(NodePtr ptr):ptr(ptr ? ptr->minimum() : nullptr){}
+            Tree_iterator(NodePtr ptr,NodePtr root):ptr(ptr),root(root){}
             reference operator*(){
                 return ptr->data;
             }
             pointer operator->(){
-                return &(ptr->data);
+                return pointer_traits<pointer>::pointer_to(ptr->data);
             }
             Tree_iterator& operator++(){
-                if(ptr->right!=nullptr) 
+                if(ptr==nullptr){
+                    if(root!=nullptr) ptr=root->minimum();
+                }
+                else if(ptr->right!=nullptr) 
                     ptr=ptr->right->minimum();
                 else if(ptr->prev==nullptr)
                     ptr=nullptr;
                 else if(ptr==ptr->prev->left)
                     ptr=ptr->prev;
                 else{
-                    while(ptr->prev!=nullptr and ptr==ptr->prev->right)
+                    while(ptr->prev!=nullptr && ptr==ptr->prev->right)
                         ptr=ptr->prev;
                     if(ptr->prev==nullptr)
                         ptr=nullptr;
@@ -257,20 +262,64 @@ namespace mpv{
             }
             Tree_iterator operator++(int){
                 Tree_iterator aux=*this;
-                if(ptr->right!=nullptr) 
+                if(ptr==nullptr){
+                    if(root!=nullptr) ptr=root->minimum();
+                }
+                else if(ptr->right!=nullptr) 
                     ptr=ptr->right->minimum();
                 else if(ptr->prev==nullptr)
                     ptr=nullptr;
                 else if(ptr==ptr->prev->left)
                     ptr=ptr->prev;
                 else{
-                    while(ptr->prev!=nullptr and ptr==ptr->prev->right)
+                    while(ptr->prev!=nullptr && ptr==ptr->prev->right)
                         ptr=ptr->prev;
                     if(ptr->prev==nullptr)
                         ptr=nullptr;
                     else
                         ptr=ptr->prev;
                 }
+                return aux;
+            }
+            Tree_iterator& operator--(){
+                if(ptr==nullptr){
+                    if(root!=nullptr) ptr=root->maximum();
+                }
+                else if(ptr->left!=nullptr) 
+                    ptr=ptr->left->maximum();
+                else if(ptr->prev==nullptr)
+                    ptr=nullptr;
+                else if(ptr==ptr->prev->right)
+                    ptr=ptr->prev;
+                else{
+                    while(ptr->prev!=nullptr && ptr==ptr->prev->left)
+                        ptr=ptr->prev;
+                    if(ptr->prev==nullptr)
+                        ptr=nullptr;
+                    else
+                        ptr=ptr->prev;
+                }   
+                return *this;
+            }
+            Tree_iterator operator--(int){
+                Tree_iterator aux=*this;
+                if(ptr==nullptr){
+                    if(root!=nullptr) ptr=root->maximum();
+                }
+                else if(ptr->left!=nullptr) 
+                    ptr=ptr->left->maximum();
+                else if(ptr->prev==nullptr)
+                    ptr=nullptr;
+                else if(ptr==ptr->prev->right)
+                    ptr=ptr->prev;
+                else{
+                    while(ptr->prev!=nullptr && ptr==ptr->prev->left)
+                        ptr=ptr->prev;
+                    if(ptr->prev==nullptr)
+                        ptr=nullptr;
+                    else
+                        ptr=ptr->prev;
+                }   
                 return aux;
             }
             bool operator==(const Tree_iterator& other)const{
@@ -290,25 +339,28 @@ namespace mpv{
 			using pointer=typename Types::const_pointer;
 			using reference=typename Types::const_reference;
         private:
-            NodePtr ptr;
+            NodePtr ptr,root;
         public:
-            const_Tree_iterator(NodePtr ptr):ptr(ptr ? ptr->minimum() : nullptr){}
-            const_Tree_iterator(Tree_iterator<Types> nonconst_it):ptr(nonconst_it.ptr){}
+            const_Tree_iterator(NodePtr ptr,NodePtr root):ptr(ptr),root(root){}
+            const_Tree_iterator(Tree_iterator<Types> nonconst_it):ptr(nonconst_it.ptr),root(nonconst_it.root){}
             reference operator*(){
                 return ptr->data;
             }
             pointer operator->(){
-                return &(ptr->data);
+                return pointer_traits<pointer>::pointer_to(ptr->data);
             }
             const_Tree_iterator& operator++(){
-                if(ptr->right!=nullptr) 
+                if(ptr==nullptr){
+                    if(root!=nullptr) ptr=root->minimum();
+                }
+                else if(ptr->right!=nullptr) 
                     ptr=ptr->right->minimum();
                 else if(ptr->prev==nullptr)
                     ptr=nullptr;
                 else if(ptr==ptr->prev->left)
                     ptr=ptr->prev;
                 else{
-                    while(ptr->prev!=nullptr and ptr==ptr->prev->right)
+                    while(ptr->prev!=nullptr && ptr==ptr->prev->right)
                         ptr=ptr->prev;
                     if(ptr->prev==nullptr)
                         ptr=nullptr;
@@ -319,20 +371,64 @@ namespace mpv{
             }
             const_Tree_iterator operator++(int){
                 const_Tree_iterator aux=*this;
-                if(ptr->right!=nullptr) 
+                if(ptr==nullptr){
+                    if(root!=nullptr) ptr=root->minimum();
+                }
+                else if(ptr->right!=nullptr) 
                     ptr=ptr->right->minimum();
                 else if(ptr->prev==nullptr)
                     ptr=nullptr;
                 else if(ptr==ptr->prev->left)
                     ptr=ptr->prev;
                 else{
-                    while(ptr->prev!=nullptr and ptr==ptr->prev->right)
+                    while(ptr->prev!=nullptr && ptr==ptr->prev->right)
                         ptr=ptr->prev;
                     if(ptr->prev==nullptr)
                         ptr=nullptr;
                     else
                         ptr=ptr->prev;
                 }
+                return aux;
+            }
+            const_Tree_iterator& operator--(){
+                if(ptr==nullptr){
+                    if(root!=nullptr) ptr=root->maximum();
+                }
+                else if(ptr->left!=nullptr) 
+                    ptr=ptr->left->maximum();
+                else if(ptr->prev==nullptr)
+                    ptr=nullptr;
+                else if(ptr==ptr->prev->right)
+                    ptr=ptr->prev;
+                else{
+                    while(ptr->prev!=nullptr && ptr==ptr->prev->left)
+                        ptr=ptr->prev;
+                    if(ptr->prev==nullptr)
+                        ptr=nullptr;
+                    else
+                        ptr=ptr->prev;
+                }   
+                return *this;
+            }
+            const_Tree_iterator operator--(int){
+                const_Tree_iterator aux=*this;
+                if(ptr==nullptr){
+                    if(root!=nullptr) ptr=root->maximum();
+                }
+                else if(ptr->left!=nullptr) 
+                    ptr=ptr->left->maximum();
+                else if(ptr->prev==nullptr)
+                    ptr=nullptr;
+                else if(ptr==ptr->prev->right)
+                    ptr=ptr->prev;
+                else{
+                    while(ptr->prev!=nullptr && ptr==ptr->prev->left)
+                        ptr=ptr->prev;
+                    if(ptr->prev==nullptr)
+                        ptr=nullptr;
+                    else
+                        ptr=ptr->prev;
+                }   
                 return aux;
             }
             bool operator==(const const_Tree_iterator& other)const{
@@ -383,23 +479,25 @@ namespace mpv{
             using const_iterator=const_Tree_iterator<Val_types>;
 		private:
             CompressedPair<Cmp,NodePtr> cp;
+            size_type length=0;
             inline static bool is_red(NodePtr p){
-                return p!=nullptr and p->color==RED;
+                return p!=nullptr && p->color==RED;
             }
             inline static bool is_black(NodePtr p){
-                return p==nullptr or p->color==BLACK;
+                return p==nullptr || p->color==BLACK;
             }
-            inline bool cmp(const_reference a,const_reference b)const{
+            template<typename U,typename D>
+            inline bool cmp(const U& a,const D& b)const{
             	return cp.getV1()(a,b);
 			}
 			template<typename... Args>
 			inline NodePtr create_node(Args&&... args){
 				NodePtr new_node=AlNode_traits::allocate(this->get_val(),1);
-				AlNode_traits::construct(this->get_val(),new_node,static_cast<Args&&>(args)...);
+				/* AlNode_traits::construct */CONSTRUCT_VARARGS(this->get_val(),new_node,static_cast<Args&&>(args));
 				return new_node;
 			}
 			inline void delete_node(NodePtr node){
-				AlNode_traits::destroy(this->get_val(),node);
+				/* AlNode_traits::destroy */DESTROY(this->get_val(),node);
 				AlNode_traits::deallocate(this->get_val(),node,1);
 			}
             inline void clr(NodePtr node){
@@ -475,7 +573,7 @@ namespace mpv{
                 this->root->color=BLACK;																		//case 0:root==RED
             }
             inline void delete_fixup(NodePtr x){
-                while(x!=root and x->color==BLACK){
+                while(x!=root && x->color==BLACK){
                     if(x==x->prev->left){
                         NodePtr w=x->prev->right;
                         if(is_red(w)){
@@ -484,7 +582,7 @@ namespace mpv{
                             left_rotate(x->prev);
                             w=x->prev->right;
                         }
-                        if(is_black(w->left) and is_black(w->right)){
+                        if(is_black(w->left) && is_black(w->right)){
                             w->color=RED;
                             x=x->prev;
                         }
@@ -510,7 +608,7 @@ namespace mpv{
                             right_rotate(x->prev);
                             w=x->prev->left;
                         }
-                        if(is_black(w->left) and is_black(w->right)){
+                        if(is_black(w->left) && is_black(w->right)){
                             w->color=RED;
                             x=x->prev;
                         }
@@ -590,22 +688,25 @@ namespace mpv{
                 }
             };
         public:
-            Tree(){INCTREES}
-            explicit Tree(const Cmp& comp,const Alloc& al=Alloc{}):EBCO<AlNode>(al),cp(arg1_tag{},comp){INCTREES}
-            Tree(const Tree& other):EBCO<AlNode>(AlNode_traits::select_on_container_copy_construction(other.get_val())),cp(arg1_tag{},other.cp.getV1()){INCTREES
+            Tree()=default;
+            explicit Tree(const Cmp& comp,const Alloc& al=Alloc{}):EBCO<AlNode>(al),cp(arg1_tag{},comp){}
+            Tree(const Tree& other):EBCO<AlNode>(AlNode_traits::select_on_container_copy_construction(other.get_val())),cp(arg1_tag{},other.cp.getV1()){
                 CpyFunc f(*this);
                 other.iterative_in_order(f);
             }
-            Tree(const Tree& other,const Alloc& al):EBCO<AlNode>(al),cp(arg1_tag{},other.cp.getV1()){INCTREES
+            Tree(const Tree& other,const Alloc& al):EBCO<AlNode>(al),cp(arg1_tag{},other.cp.getV1()){
                 CpyFunc f(*this);
                 other.iterative_in_order(f);
             }
-            Tree(Tree&& other):EBCO<AlNode>(static_cast<AlNode&&>(other.get_val())),cp(arg1_tag{},static_cast<Cmp&&>(other.cp.getV1()),other.root){INCTREES
+            Tree(Tree&& other):EBCO<AlNode>(static_cast<AlNode&&>(other.get_val())),cp(arg1_tag{},static_cast<Cmp&&>(other.cp.getV1()),other.root),length(other.length){
                 other.root=nullptr;
+                other.length=0;
             }
-            Tree(Tree&& other,const Alloc& al):EBCO<AlNode>(al),cp(arg1_tag{},static_cast<Cmp&&>(other.cp.getV1())){INCTREES
+            Tree(Tree&& other,const Alloc& al):EBCO<AlNode>(al),cp(arg1_tag{},static_cast<Cmp&&>(other.cp.getV1())){
                 if(this->get_val()==other.get_val()){
                     this->root=other.root;
+                    this->length=other.length;
+                    other.length=0;
                     other.root=nullptr;
                 }
                 else{
@@ -614,15 +715,16 @@ namespace mpv{
                     other.clear();
                 }
             }
-            Tree(std::initializer_list<T> initializerList){INCTREES
+            Tree(std::initializer_list<T> initializerList){
                 for(const_reference v:initializerList)
                     this->insert(v);
             }
-            Tree(std::initializer_list<T> initializerList,const Alloc& al):EBCO<AlNode>(al){INCTREES
+            Tree(std::initializer_list<T> initializerList,const Alloc& al):EBCO<AlNode>(al){
                 for(const_reference v:initializerList)
                     this->insert(v);
             }
             Tree& operator=(const Tree& other){
+                if(this==&other) return *this;
                 this->clear();
                 this->cp.getV1()=other.cp.getV1();
                 if constexpr(POCCA) this->get_val()=other.get_val();
@@ -631,9 +733,10 @@ namespace mpv{
                 return *this;
             }
             Tree& operator=(Tree&& other){
+                if(this==&other) return *this;
                 this->clear();
                 this->cp.getV1()=static_cast<Cmp&&>(other.cp.getV1());
-                if constexpr(not ALWAYS_EQ and not POCMA){
+                if constexpr(!ALWAYS_EQ && !POCMA){
                     if(this->get_val()!=other.get_val()){
                         MovFunc f(*this);
                         other.iterative_in_order(f);
@@ -642,7 +745,9 @@ namespace mpv{
                 }
                 if constexpr(POCMA) this->get_val()=other.get_val();
                 this->root=other.root;
+                this->length=other.length;
                 other.root=nullptr;
+                other.length=0;
                 return *this;
             }
             pointer insert(const_reference data){
@@ -674,11 +779,12 @@ namespace mpv{
                             else
                                 x=x->right;
                         }
-                        else return nullptr;
+                        else return pointer_traits<pointer>::pointer_to(x->data);
                     }
                 }
+                length++;
                 this->insert_fixup(x);
-                return &x->data;
+                return pointer_traits<pointer>::pointer_to(x->data);
             }
             pointer insert(value_type&& data){
                 NodePtr x;
@@ -709,11 +815,12 @@ namespace mpv{
                             else
                                 x=x->right;
                         }
-                        else return nullptr;
+                        else return pointer_traits<pointer>::pointer_to(x->data);
                     }
                 }
+                length++;
                 this->insert_fixup(x);
-                return &x->data;
+                return pointer_traits<pointer>::pointer_to(x->data);
             }
             template<typename... Args>
             pointer emplace(Args&&... args){
@@ -746,110 +853,15 @@ namespace mpv{
                             else
                                 x=x->right;
                         }
-                        else return nullptr;
+                        else return pointer_traits<pointer>::pointer_to(x->data);
                     }
                 }
+                length++;
                 this->insert_fixup(x);
-                return &x->data;
+                return pointer_traits<pointer>::pointer_to(x->data);
             }
-            // template<typename... Args>
-            // bool emplace(Args&&... args){
-            //     NodePtr x;
-            //     T data(static_cast<Args&&>(args)...);
-            //     if(root==nullptr){
-            //         root=create_node(static_cast<value_type&&>(data));
-            //         x=root;
-            //     }
-            //     else{
-            //         x=root;
-            //         while(true){
-            //             if(cmp(data,x->data)){
-            //                 if(x->left==nullptr){
-            //                     x->left=create_node(static_cast<value_type&&>(data));
-            //                     x->left->prev=x;
-            //                     x=x->left;
-            //                     break;							
-            //                 }
-            //                 else
-            //                     x=x->left;
-            //             }
-            //             else if(cmp(x->data,data)){
-            //                 if(x->right==nullptr){
-            //                     x->right=create_node(static_cast<value_type&&>(data));
-            //                     x->right->prev=x;
-            //                     x=x->right;
-            //                     break;							
-            //                 }
-            //                 else
-            //                     x=x->right;
-            //             }
-            //             else return false;
-            //         }
-            //     }
-            //     this->insert_fixup(x);
-            //     return true;
-            // }
-            bool has(const_reference data)const{
-                if(root==nullptr)
-                    return false;
-                NodePtr x=root;
-                while(true){
-                    if(cmp(data,x->data)){
-                        if(x->left==nullptr)
-                            return false;						
-                        else
-                            x=x->left;
-                    }
-                    else if(cmp(x->data,data)){
-                        if(x->right==nullptr)
-                            return false;							
-                        else
-                            x=x->right;
-                    }
-                    else return true;
-                }
-            }
-            pointer get(const_reference data){
-                if(root==nullptr)
-                    return nullptr;
-                NodePtr x=root;
-                while(true){
-                    if(cmp(data,x->data)){
-                        if(x->left==nullptr)
-                            return nullptr;						
-                        else
-                            x=x->left;
-                    }
-                    else if(cmp(x->data,data)){
-                        if(x->right==nullptr)
-                            return nullptr;							
-                        else
-                            x=x->right;
-                    }
-                    else return &x->data;
-                }
-            }
-            const_pointer get(const_reference data)const{
-                if(root==nullptr)
-                    return nullptr;
-                NodePtr x=root;
-                while(true){
-                    if(cmp(data,x->data)){
-                        if(x->left==nullptr)
-                            return nullptr;						
-                        else
-                            x=x->left;
-                    }
-                    else if(cmp(x->data,data)){
-                        if(x->right==nullptr)
-                            return nullptr;							
-                        else
-                            x=x->right;
-                    }
-                    else return &x->data;
-                }
-            }
-            bool del(const_reference data){
+            template<typename U>
+            bool del(const U& data){
                 if(root==nullptr)
                     return false;
                 NodePtr z=root;
@@ -868,15 +880,16 @@ namespace mpv{
                     }
                     else break;
                 }
-                if(z==root and z->left==nullptr and z->right==nullptr){
+                if(z==root && z->left==nullptr && z->right==nullptr){
                     delete_node(z);
                     root=nullptr;
+                    length--;
                     return true;
                 }
                 NodePtr x;
                 RedOrBlack original_color=z->color;
                 TempNode tempnode;
-                if(z->left==nullptr and z->right==nullptr){
+                if(z->left==nullptr && z->right==nullptr){
                     tempnode.link_to_right_of(z);
                     x=z->right;
                     transplant(z,x);
@@ -909,7 +922,71 @@ namespace mpv{
                 delete_node(z);
                 if(original_color==BLACK)
                     delete_fixup(x);
+                length--;
                 return true;
+            }
+            template<typename U>
+            bool has(const U& data)const{
+                if(root==nullptr)
+                    return false;
+                NodePtr x=root;
+                while(true){
+                    if(cmp(data,x->data)){
+                        if(x->left==nullptr)
+                            return false;						
+                        else
+                            x=x->left;
+                    }
+                    else if(cmp(x->data,data)){
+                        if(x->right==nullptr)
+                            return false;							
+                        else
+                            x=x->right;
+                    }
+                    else return true;
+                }
+            }
+            template<typename U>
+            pointer get(const U& data){
+                if(root==nullptr)
+                    return nullptr;
+                NodePtr x=root;
+                while(true){
+                    if(cmp(data,x->data)){
+                        if(x->left==nullptr)
+                            return nullptr;						
+                        else
+                            x=x->left;
+                    }
+                    else if(cmp(x->data,data)){
+                        if(x->right==nullptr)
+                            return nullptr;							
+                        else
+                            x=x->right;
+                    }
+                    else return pointer_traits<pointer>::pointer_to(x->data);
+                }
+            }
+            template<typename U>
+            const_pointer get(const U& data)const{
+                if(root==nullptr)
+                    return nullptr;
+                NodePtr x=root;
+                while(true){
+                    if(cmp(data,x->data)){
+                        if(x->left==nullptr)
+                            return nullptr;						
+                        else
+                            x=x->left;
+                    }
+                    else if(cmp(x->data,data)){
+                        if(x->right==nullptr)
+                            return nullptr;							
+                        else
+                            x=x->right;
+                    }
+                    else return pointer_traits<const_pointer>::pointer_to(x->data);
+                }
             }
 			template<typename Lambda>
 			bool any(Lambda&& func=Lambda{})const{
@@ -948,7 +1025,7 @@ namespace mpv{
                     else if(current==current->prev->left)
                         current=current->prev;
                     else{
-                        while(current!=root and current==current->prev->right)
+                        while(current!=root && current==current->prev->right)
                             current=current->prev;
                         if(current==root)
                             return;
@@ -994,27 +1071,66 @@ namespace mpv{
             bool empty()const{
                 return root==nullptr;
             }
+            size_type get_size()const{
+                if(root==nullptr) return 0;
+                NodePtr current=root->minimum();
+                size_type size=0;
+                while(true){
+                    size++;
+                    if(current->right!=nullptr) 
+                        current=current->right->minimum();
+                    else if(current==root)
+                        return size;
+                    else if(current==current->prev->left)
+                        current=current->prev;
+                    else{
+                        while(current!=root && current==current->prev->right)
+                            current=current->prev;
+                        if(current==root)
+                            return size;
+                        else
+                            current=current->prev;
+                    }
+                }
+            }
+            size_type size()const{
+#if defined(DEBUG) && (defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_))
+                if(length!=get_size()){
+                    std::cerr<<"\nSIZE AND NODE_COUNT DO NOT MATCH\a\n"
+                            <<"LEN: "<<length<<"\nNODE_COUNT: "<<get_size()<<std::endl;
+                    exit(-1);
+                }
+#endif
+                return length;
+            }
             void clear(){
                 clr(root);
+                length=0;
                 root=nullptr;
             }
-            ~Tree(){DECTREES
+            ~Tree(){
                 clr(root);
             }
             pointer get_root(){
-                return root!=nullptr ? &root->data : nullptr;
+                return root!=nullptr ? pointer_traits<pointer>::pointer_to(root->data) : nullptr;
             }
             const_iterator begin()const{
-                return const_iterator(root);
+                return const_iterator(root ? root->minimum() : nullptr,root);
             }
             const_iterator end()const{
-                return const_iterator(nullptr);
+                return const_iterator(nullptr,root);
+            }
+            const_iterator rbegin()const{
+                return const_iterator(root ? root->maximum() : nullptr,root);
             }
             iterator begin(){
-                return iterator(root);
+                return iterator(root ? root->minimum() : nullptr,root);
             }
             iterator end(){
-                return iterator(nullptr);
+                return iterator(nullptr,root);
+            }
+            iterator rbegin(){
+                return iterator(root ? root->maximum() : nullptr,root);
             }
             template<typename Out,typename t,typename alloc,typename Comp> friend Out& operator<<(Out&,const Tree<t,alloc,Comp>&);
 #undef root

@@ -2,6 +2,62 @@
 #include"pointer_traits.hpp"
 namespace mpv{
     template<typename T>
+    class debug_allocator{
+        public:
+            using value_type=T;
+            using pointer=T*;
+            using const_pointer=const T*;
+            using reference=T&;
+            using const_reference=const T&;
+            using size_type=size_t;
+            using difference_type=ptrdiff_t;
+            using propagate_on_container_move_assignment=true_type;
+            using is_always_equal=true_type;
+            template<typename Other> struct rebind{
+                using other=debug_allocator<Other>;
+            };
+            T* address(T& val) const noexcept{
+                //return __builtin_addressof(val);
+                return &val;
+            }
+            const T* address(const T& val) const noexcept{
+                //return __builtin_addressof(val);
+                return &val;
+            }
+            constexpr debug_allocator()noexcept{}
+            constexpr debug_allocator(const debug_allocator&)noexcept = default;
+            template<typename Other>constexpr debug_allocator(const debug_allocator<Other>&)noexcept{}
+            ~debug_allocator()=default;
+            debug_allocator& operator=(const debug_allocator&) = default;
+            void deallocate(T* const ptr,const size_t count){
+                DEBUG_PRINT("deallocating %llu bytes\n",count*sizeof(T));
+                ::operator delete(ptr,count*sizeof(T));
+            }
+            T* allocate(const size_t count){
+                DEBUG_PRINT("allocating %llu bytes\n",count*sizeof(T));
+                return static_cast<T*>(::operator new(count*sizeof(T)));
+            }
+            template<typename U,typename... Args>
+            void construct(U* const ptr,Args&&... args){
+                DEBUG_PRINT("calling construct\n");
+                new(const_cast<void*>(static_cast<const volatile void*>(ptr))) U(static_cast<Args&&>(args)...);
+            }
+            template<typename U>
+            void destroy(U* const ptr){
+                DEBUG_PRINT("calling destroy\n");
+                ptr->~U();
+            }
+            size_t max_size()const noexcept{
+                return static_cast<size_t>(-1)/sizeof(T);
+            }
+            constexpr bool operator==(const debug_allocator&){
+                return true;
+            }
+            constexpr bool operator!=(const debug_allocator&){
+                return false;
+            }
+    };
+    template<typename T>
     class allocator{
         public:
             using From_primary=allocator;
@@ -18,10 +74,12 @@ namespace mpv{
                 using other=allocator<Other>;
             };
             T* address(T& val) const noexcept{
-                return __builtin_addressof(val);
+                //return __builtin_addressof(val);
+                return &val;
             }
             const T* address(const T& val) const noexcept{
-                return __builtin_addressof(val);
+                //return __builtin_addressof(val);
+                return &val;
             }
             constexpr allocator()noexcept{}
             constexpr allocator(const allocator&)noexcept = default;
@@ -56,13 +114,20 @@ namespace mpv{
     template<typename Al,typename Size_type,typename CVpointer> struct Has_allocate_hint<Al,Size_type,CVpointer,void_t<decltype(declval<Al&>().allocate(declval<const Size_type&>(),declval<const CVpointer&>()))>>:true_type{};
 
     template<typename Al,typename=void> struct Is_default_allocator:false_type{};
-    template<typename T> struct Is_default_allocator<allocator<T>,void_t<typename allocator<T>::From_primary>>:is_same<typename allocator<T>::From_primary,allocator<T>>{};
+    template<typename T> struct Is_default_allocator<allocator<T>,void_t<typename allocator<T>::From_primary>>:is_same<typename allocator<T>::From_primary,allocator<T>>::type{};// this library
+//    template<typename T> struct Is_default_allocator<std::allocator<T>,void_t<typename std::allocator<T>::_From_primary>>:is_same<typename std::allocator<T>::_From_primary,std::allocator<T>>::type{};// clang
+//    template<template<typename> typename A,typename T> struct Is_default_allocator<A<T>>:is_same<A<T>,std::allocator<T>>::type{};                                       // other librarys
     template<typename Void,typename... Args> struct Has_no_alloc_construct:true_type{};
     template<typename Al,typename Pointer,typename... Args> struct Has_no_alloc_construct<void_t<decltype(declval<Al&>().construct(declval<Pointer>(),declval<Args>()...))>,Al,Pointer,Args...>:false_type{};
-    template<typename Al,typename Pointer,typename... Args> using Uses_default_construct=If_t<Is_default_allocator<Al>::value or Has_no_alloc_construct<void,Al,Pointer,Args...>::value,true_type,false_type>;
+
+    template<typename Al,typename Pointer,typename... Args> using Uses_default_construct=If_t<Is_default_allocator<Al>::value || Has_no_alloc_construct<void,Al,Pointer,Args...>::value,true_type,false_type>;
+    template<typename Al,typename Pointer,typename... Args> constexpr bool Uses_default_construct_v=Uses_default_construct<Al,Pointer,Args...>::value;
+
     template<typename Al,typename Pointer,typename=void> struct Has_no_alloc_destroy:true_type{};
     template<typename Al,typename Pointer> struct Has_no_alloc_destroy<Al,Pointer,void_t<decltype(declval<Al&>().destroy(declval<Pointer>()))>>:false_type{};
-    template<typename Al,typename Pointer> using Uses_default_destroy=If_t<Is_default_allocator<Al>::value or Has_no_alloc_destroy<Al,Pointer>::value,true_type,false_type>;
+    
+    template<typename Al,typename Pointer> using Uses_default_destroy=If_t<Is_default_allocator<Al>::value || Has_no_alloc_destroy<Al,Pointer>::value,true_type,false_type>;
+    template<typename Al,typename Pointer> constexpr bool Uses_default_destroy_v=Uses_default_destroy<Al,Pointer>::value;
     template<typename Al,typename=void> struct Has_select_on_container_copy_construction:false_type{};
     template<typename Al> struct Has_select_on_container_copy_construction<Al,void_t<decltype(declval<const Al&>().select_on_container_copy_construction())>>:true_type{};
 
@@ -176,7 +241,7 @@ namespace mpv{
             using is_always_equal=typename always_eq<Alloc>::type;
             template<typename T> using rebind_alloc=typename rebind__<Alloc,T>::type;
             template<typename T> using rebind_traits=allocator_traits<rebind_alloc<T>>;
-
+            //static constexpr bool uses_default_construct=<Alloc,T*>
 
             static pointer allocate(Alloc& al,const size_type n){
                 return al.allocate(n);
@@ -199,7 +264,7 @@ namespace mpv{
             }
             template<typename T>
             static void destroy(Alloc& al,T* p){
-                if constexpr(Uses_default_construct<Alloc,T*>::value)
+                if constexpr(Uses_default_destroy<Alloc,T*>::value)
                     p->~T();
 #ifdef __clang__
     #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -220,5 +285,5 @@ namespace mpv{
     };
     template<typename Alloc,typename U> using rebind_alloc=typename allocator_traits<Alloc>::template rebind_alloc<U>;
     template<typename Alloc,typename U> using rebind_traits=typename allocator_traits<Alloc>::template rebind_traits<U>;
+
 }
-//#undef _SILENCE_CXX17_POLYMORPHIC_ALLOCATOR_DESTROY_DEPRECATION_WARNING

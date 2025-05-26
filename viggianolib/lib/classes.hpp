@@ -1,81 +1,81 @@
 #pragma once
-#if (defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_)) || defined(_INC_STDIO) && defined(SHOWREMAININGOBJECTS)
-#define SETCOUNTERS		int remainingQueues=0;\
-						int remainingStacks=0;\
-						int remainingLists=0;\
-						int remainingStrings=0;\
-						int remainingControlBlocks=0;\
-						int remainingStrongPointers=0;\
-						int remainingWeakPointers=0;\
-						int remainingUniquePointers=0;\
-						int remainingTrees=0;\
+#if (defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_) || defined(_INC_STDIO)) && defined(SHOWREMAININGOBJECTS)
+#define SETCOUNTERS		int remainingControlBlocks=0;\
 						int remainingListNodes=0;
-						
-#define INCQUEUES 					remainingQueues++;
-#define DECQUEUES					remainingQueues--;
-#define REMAININGQUEUES 			printf("\nREMAINING QUEUES: %d\n",remainingQueues);
-#define INCSTACKS 					remainingStacks++;
-#define DECSTACKS 					remainingStacks--;
-#define REMAININGSTACKS	 			printf("\nREMAINING STACKS: %d\n",remainingStacks);
-#define INCLISTS  					remainingLists++;
-#define DECLISTS  					remainingLists--;
-#define REMAININGLISTS 				printf("\nREMAINING LISTS: %d\n",remainingLists);
-#define INCSTRINGS 					remainingStrings++;
-#define DECSTRINGS					remainingStrings--;
-#define REMAININGSTRINGS 			printf("\nREMAINING STRINGS: %d\n",remainingStrings);
 #define INCCTRLBLOCKS				remainingControlBlocks++;
 #define DECCTRLBLOCKS				remainingControlBlocks--;
 #define REMAININGCTRLBLOCKS 		printf("\nREMAINING CONTROL BLOCKS: %d\n",remainingControlBlocks);
-#define INCSTRONGPOINTERS 			remainingStrongPointers++;
-#define DECSTRONGPOINTERS 			remainingStrongPointers--;
-#define REMAININGSTRONGPOINTERS 	printf("\nREMAINING STRONG POINTERS: %d\n",remainingStrongPointers);
-#define INCWEAKPOINTERS				remainingWeakPointers++;
-#define DECWEAKPOINTERS				remainingWeakPointers--;
-#define REMAININGWEAKPOINTERS		printf("\nREMAINING WEAK POINTERS: %d\n",remainingWeakPointers);
-#define INCUNIQUEPOINTERS			remainingUniquePointers++;
-#define DECUNIQUEPOINTERS			remainingUniquePointers--;
-#define REMAININGUNIQUEPOINTERS		printf("\nREMAINING UNIQUE POINTERS: %d\n",remainingUniquePointers);
-#define INCTREES					remainingTrees++;
-#define DECTREES					remainingTrees--;
-#define REMAININGTREES				printf("\nREMAINING TREES: %d\n",remainingTrees);
 #define INCLNODES					remainingListNodes++;
 #define DECLNODES					remainingListNodes--;
 #define REMAININGLNODES				printf("\nREMAINING LIST NODES: %d\n",remainingListNodes);
 #else
 #define SETCOUNTERS
-#define INCQUEUES
-#define DECQUEUES
-#define REMAININGQUEUES
-#define INCSTACKS
-#define DECSTACKS
-#define REMAININGSTACKS
-#define INCLISTS
-#define DECLISTS
-#define REMAININGLISTS
-#define INCSTRINGS
-#define DECSTRINGS
-#define REMAININGSTRINGS
 #define INCCTRLBLOCKS
 #define DECCTRLBLOCKS
 #define REMAININGCTRLBLOCKS
-#define INCSTRONGPOINTERS
-#define DECSTRONGPOINTERS
-#define REMAININGSTRONGPOINTERS
-#define INCWEAKPOINTERS
-#define DECWEAKPOINTERS
-#define REMAININGWEAKPOINTERS
-#define INCUNIQUEPOINTERS
-#define DECUNIQUEPOINTERS
-#define REMAININGUNIQUEPOINTERS
-#define INCTREES
-#define DECTREES
-#define REMAININGTREES
 #define INCLNODES
 #define DECLNODES
 #define REMAININGLNODES
 #endif
 SETCOUNTERS
+
 namespace mpv{
+	struct byte{
+		union{
+			unsigned char uval;
+			signed char val;
+		};
+		bool get(unsigned char bit_index)const{
+			switch(bit_index){
+				case 0: return val & 0b10000000;
+				case 1: return val & 0b01000000;
+				case 2: return val & 0b00100000;
+				case 3: return val & 0b00010000;
+				case 4: return val & 0b00001000;
+				case 5: return val & 0b00000100;
+				case 6: return val & 0b00000010;
+				case 7: return val & 0b00000001;
+				default: throw "index should be <8";
+			}
+		}
+		template<unsigned char index>
+		inline constexpr bool get()const{
+			static_assert(index<8,"index should be <8");
+			if constexpr	 (index==0) return val & 0b10000000;
+			else if constexpr(index==1) return val & 0b01000000;
+			else if constexpr(index==2) return val & 0b00100000;
+			else if constexpr(index==3) return val & 0b00010000;
+			else if constexpr(index==4) return val & 0b00001000;
+			else if constexpr(index==5) return val & 0b00000100;
+			else if constexpr(index==6) return val & 0b00000010;
+			else if constexpr(index==7) return val & 0b00000001;
+		}
+		operator unsigned char()const{
+			return val;
+		}
+		byte(unsigned char val):val(val){}
+		void operator=(unsigned char new_val){
+			val=new_val;
+		}
+		template<unsigned char size>
+		unsigned char get_right_bits()const{
+			static_assert(size<=8,"index should be <8");
+			if constexpr(size==0) return 0;
+			else if constexpr(size==1) return uval & 0b00000001;
+			else if constexpr(size==2) return uval & 0b00000011;
+			else if constexpr(size==3) return uval & 0b00000111;
+			else if constexpr(size==4) return uval & 0b00001111;
+			else if constexpr(size==5) return uval & 0b00011111;
+			else if constexpr(size==6) return uval & 0b00111111;
+			else if constexpr(size==7) return uval & 0b01111111;
+			else if constexpr(size==8) return uval & 0b11111111;
+		}
+		template<unsigned char size>
+		unsigned char get_left_bits()const{
+			static_assert(size<=8,"size should be <=8");
+			return uval>>(8-size);
+		}
+	};
     template<typename T,T P1,T P2> struct params{
         static constexpr T p1=P1;
         static constexpr T p2=P2;
@@ -254,16 +254,22 @@ namespace mpv{
 #if defined(_ATOMIC_) || defined(_GLIBCXX_ATOMIC)
 
 #endif
+#include"def_alloc_macros.hpp"
+#include"Classes/Wrapper.hpp"
 #include"Classes/EmptyClassOptimizations.hpp"
 #include"Classes/Iterables.hpp"
 #include"Classes/Optional.hpp"
 #include"Classes/Stringsv2.hpp"
-#include"Classes/Lists.hpp"
-#include"Classes/ArrayListsv2.hpp"
+#include"Classes/List.hpp"
+#include"Classes/Vectorv2.hpp"
+//#include"Classes/ArrayListv2.hpp"
 #include"Classes/Stacks_Queues.hpp"
 #include"Classes/AutoPtrv2/PointerBase.hpp"
 #include"Classes/Red-Black Treev2.hpp"
 #include"Classes/Map.hpp"
+#include"Classes/Set.hpp"
 #include"Classes/BitList.hpp"
 #include"Classes/Array.hpp"
 #include"Classes/Matrix.hpp"
+#include"Classes/BigInt.hpp"
+#include"undef_alloc_macros.hpp"

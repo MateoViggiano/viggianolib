@@ -2,12 +2,12 @@
 namespace mpv{
     template<typename T,size_t R,size_t C>
     class Matrix:public Array<Array<T,C>,R>{
-        static constexpr size_t rows=R;
-        static constexpr size_t columns=C;
-        static constexpr size_t size=R*C;
         using base=Array<Array<T,C>,R>;
         using base::base;
         public:
+        static constexpr size_t rows=R;
+        static constexpr size_t columns=C;
+        static constexpr size_t length=R*C;        
             Matrix(const T(&m)[R][C]){
                 for(size_t i=0;i<R;i++){
                     this->buffer[i]=m[i];

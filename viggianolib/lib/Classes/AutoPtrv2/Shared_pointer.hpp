@@ -1,8 +1,13 @@
 #pragma once
 namespace mpv{
 	struct CtrlBlock COUNT_IT{
+#ifdef USE_ATOMIC
+		std::atomic<size_t> sharedCount;
+		std::atomic<size_t> weakCount;
+#else
 		size_t sharedCount;
 		size_t weakCount;
+#endif
 		CtrlBlock():sharedCount(1),weakCount(1){
 			INCCTRLBLOCKS
 		}
@@ -167,7 +172,6 @@ namespace mpv{
 			CtrlBlock* ctrl_block;
 			sPtr(CtrlBlock* ctrl_block,remove_extent_t<T>* ptr):PtrBase<T>(ptr),ctrl_block(ctrl_block){// Solo las funciones de casteo pueden usar este constructor
 				if(ctrl_block!=nullptr) ctrl_block->sharedCount++;
-				INCSTRONGPOINTERS
 			}
 			void release(){
 				if(this->ctrl_block!=nullptr){//	El puntero actual deja de apuntar a la memoria de la que era dueño, si esta no tiene mas dueños se libera
@@ -182,20 +186,19 @@ namespace mpv{
 			using element_type=typename PtrBase<T>::element_type;
 			template<typename U>
 			sPtr(const wPtr<U>& weakPtr):PtrBase<T>(weakPtr.data),ctrl_block(weakPtr.ctrl_block){	//construye un puntero fuerte en base a uno debil
-				INCSTRONGPOINTERS											
-				if(weakPtr.ctrl_block==nullptr or weakPtr.ctrl_block->sharedCount==0){
+				if(weakPtr.ctrl_block==nullptr || weakPtr.ctrl_block->sharedCount==0){
 					this->ctrl_block=nullptr;
 					this->data=nullptr;
 				}
 				else
 					this->ctrl_block->sharedCount++;
 			}
-			sPtr():PtrBase<T>(nullptr),ctrl_block(nullptr){INCSTRONGPOINTERS}
-			explicit sPtr(decltype(nullptr)):PtrBase<T>(nullptr),ctrl_block(nullptr){INCSTRONGPOINTERS}
+			sPtr():PtrBase<T>(nullptr),ctrl_block(nullptr){}
+			sPtr(decltype(nullptr)):PtrBase<T>(nullptr),ctrl_block(nullptr){}
 			template<typename U>
-			explicit sPtr(U* dat):PtrBase<T>(dat),ctrl_block(dat!=nullptr ? new Block_pointer<remove_array_size_t<rebind_array_t<T,U>>>(dat) : nullptr){INCSTRONGPOINTERS}
+			explicit sPtr(U* dat):PtrBase<T>(dat),ctrl_block(dat!=nullptr ? new Block_pointer<remove_array_size_t<rebind_array_t<T,U>>>(dat) : nullptr){}
 			template<typename U,typename Del>
-			sPtr(U* dat,Del&& deleter):PtrBase<T>(dat),ctrl_block(dat!=nullptr ? new Block_pointer_and_deleter<U*,Del>(dat,static_cast<Del&&>(deleter)) : nullptr){INCSTRONGPOINTERS}
+			sPtr(U* dat,Del&& deleter):PtrBase<T>(dat),ctrl_block(dat!=nullptr ? new Block_pointer_and_deleter<U*,Del>(dat,static_cast<Del&&>(deleter)) : nullptr){}
 			template<typename U,typename Del,typename Alloc>
 			sPtr(U* dat,Del&& deleter,Alloc alloc):PtrBase<T>(dat),ctrl_block(nullptr){
 				if(dat){
@@ -212,28 +215,24 @@ namespace mpv{
 											reference_wrapper<remove_reference_t<Del>>//lo mismo que decltype(ref(unique.get_deleter()))
 											,Del>>
 				(unique.drop(),static_cast<Del&&>(unique.get_deleter())) 
-		: nullptr){INCSTRONGPOINTERS}
+		: nullptr){}
 
 
 			sPtr(const sPtr& other):PtrBase<T>(other.data),ctrl_block(other.ctrl_block){//Si no declaro este constructor el compilador lo declara de forma implicita y prefiere llamarlo antes instanciar un template, lo que genera comportamiento indefinido.
 				if(this->ctrl_block!=nullptr) this->ctrl_block->sharedCount++;
-				INCSTRONGPOINTERS
 			}
 			template<typename U,enable_if_t<have_same_extent_v<T,U> || (is_same_v<remove_extent_t<T>,remove_extent_t<U>> && is_no_size_array_v<T> && is_size_array_v<U>),int> = 0>
 			sPtr(const sPtr<U>& other):PtrBase<T>(other.data),ctrl_block(other.ctrl_block){
 				if(this->ctrl_block!=nullptr) this->ctrl_block->sharedCount++;
-				INCSTRONGPOINTERS
 			}
 			sPtr(sPtr<T>&& other):PtrBase<T>(other.data),ctrl_block(other.ctrl_block){
 				other.data=nullptr;
 				other.ctrl_block=nullptr;
-				INCSTRONGPOINTERS
 			}
 			template<typename U,enable_if_t<have_same_extent_v<T,U> || (is_same_v<remove_extent_t<T>,remove_extent_t<U>> && is_no_size_array_v<T> && is_size_array_v<U>),int> = 0>
 			sPtr(sPtr<U>&& other):PtrBase<T>(other.data),ctrl_block(other.ctrl_block){
 				other.data=nullptr;
 				other.ctrl_block=nullptr;
-				INCSTRONGPOINTERS
 			}
 			template<typename U>
 			sPtr(const sPtr<U>& other,remove_extent_t<T>* alias_ptr):PtrBase<T>(nullptr),ctrl_block(other.ctrl_block){
@@ -241,13 +240,11 @@ namespace mpv{
 					this->ctrl_block->sharedCount++;
 					this->data=alias_ptr;
 				}
-				INCSTRONGPOINTERS
 			}
 			template<typename U>
 			sPtr(sPtr<U>&& other,remove_extent_t<T>* alias_ptr):PtrBase<T>(other.ctrl_block!=nullptr ? alias_ptr : nullptr),ctrl_block(other.ctrl_block){
 				other.ctrl_block=nullptr;
 				other.data=nullptr;
-				INCSTRONGPOINTERS
 			}
 			sPtr& operator=(decltype(nullptr)){
 				this->release();
@@ -317,7 +314,7 @@ namespace mpv{
 				return *this;
 			}
 			sPtr& operator=(sPtr&& other){
-				if(this==&other) return other;
+				if(this==&other) return *this;
 				this->release();// No es necesario comprobar si es el mismo ctrl_block que el de other porq si se esta moviendo un sPtr a otro
 				this->data=other.data;// y ninguno apunta a null, eso significa que sharedCount es mas de 2.
 				this->ctrl_block=other.ctrl_block;
@@ -335,10 +332,9 @@ namespace mpv{
 				return *this;
 			}
 			size_t currentOwners()const{
-				return this->ctrl_block==nullptr? 0 : this->ctrl_block->sharedCount;
+				return this->ctrl_block==nullptr? 0 : (size_t)this->ctrl_block->sharedCount;
 			}
 			~sPtr(){
-				DECSTRONGPOINTERS
 				release();
 			}
 			template<typename u> friend class sPtr;
@@ -351,12 +347,12 @@ namespace mpv{
 			template<typename t,typename u> friend enable_if_t<have_same_extent_v<t,u>,sPtr<t>> reinterpret_ptr_cast(sPtr<u>&&);
 			template<typename t,typename u> friend enable_if_t<have_same_extent_v<t,u>,sPtr<t>> const_ptr_cast(sPtr<u>&&);
 			template<typename t,typename u> friend enable_if_t<have_same_extent_v<t,u>,sPtr<t>> dynamic_ptr_cast(sPtr<u>&&);
-			template<typename t,typename ...Args> friend constexpr enable_if_t<not is_array_v<t>,sPtr<t>> make_sPtr(Args&&...);
+			template<typename t,typename ...Args> friend constexpr enable_if_t<!is_array_v<t>,sPtr<t>> make_sPtr(Args&&...);
 			template<typename t> friend constexpr enable_if_t<is_size_array_v<t>,sPtr<t>> make_sPtr();
 			template<typename t> friend constexpr enable_if_t<is_size_array_v<t>,sPtr<t>> make_sPtr(const remove_extent_t<t>&);
 			template<typename t> friend constexpr enable_if_t<is_no_size_array_v<t>,sPtr<t>> make_sPtr(size_t);
 			template<typename t> friend constexpr enable_if_t<is_no_size_array_v<t>,sPtr<t>> make_sPtr(size_t,const remove_extent_t<t>&);
-			template<typename t,typename Alloc,typename... Args> friend constexpr enable_if_t<not is_array_v<t>,sPtr<t>> alloc_sPtr(const Alloc&,Args&&...);
+			template<typename t,typename Alloc,typename... Args> friend constexpr enable_if_t<!is_array_v<t>,sPtr<t>> alloc_sPtr(const Alloc&,Args&&...);
 			template<typename t,typename Alloc> friend constexpr enable_if_t<is_size_array_v<t>,sPtr<t>> alloc_sPtr(const Alloc&);
 			template<typename t,typename Alloc> friend constexpr enable_if_t<is_size_array_v<t>,sPtr<t>> alloc_sPtr(const Alloc&,const remove_extent_t<t>&);
 			template<typename t,typename Alloc> friend constexpr enable_if_t<is_no_size_array_v<t>,sPtr<t>> alloc_sPtr(size_t,const Alloc&);

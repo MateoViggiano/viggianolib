@@ -1,6 +1,7 @@
 #pragma once
 namespace mpv{
 #if ((defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_)) || defined(_INC_STDIO)) && defined(SHOWCOUNT)
+
 	struct testObj COUNT_IT {
 		static long long objCount;
 		int a;
@@ -133,7 +134,7 @@ namespace mpv{
 #endif
 	long long testObj::objCount=0;
 	template<typename Out>
-	Out& operator<<(Out& stream,const testObj& obj){
+	Out& operator<<(Out& stream,testObj& obj){
 		stream<<obj.a;
 		return stream;
 	}

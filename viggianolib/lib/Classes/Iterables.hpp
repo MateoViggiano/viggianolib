@@ -57,9 +57,9 @@ namespace mpv{
 		T operator[](size_t index)const{
 			return start+index*step;			
 		}
-		size_t len()const{
+		size_t size()const{
 			if constexpr(is_signed_v<U>){
-				if((step>=0 and start>=stop) or (step<0 and start<stop)) return 0;
+				if((step>=0 && start>=stop) || (step<0 && start<stop)) return 0;
 			}else{
 				if(start>=stop) return 0;
 			}

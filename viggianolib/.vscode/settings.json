@@ -14,6 +14,9 @@
         "memory": "cpp",
         "vector": "cpp",
         "utility": "cpp",
-        "xtr1common": "cpp"
+        "xtr1common": "cpp",
+        "array": "cpp",
+        "string": "cpp",
+        "string_view": "cpp"
     }
 }

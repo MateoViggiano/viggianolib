@@ -42,7 +42,6 @@ namespace mpv{
                 other.ctrl_block=nullptr;
             }
             wPtr& operator=(const wPtr& other){
-                if(this==&other) return other;
                 if(other.ctrl_block!=nullptr) other.ctrl_block->weakCount++;
                 this->release();
                 this->ctrl_block=other.ctrl_block;
@@ -100,7 +99,7 @@ namespace mpv{
                 return *this;
             }
             size_t currentOwners(){
-                return ctrl_block==nullptr ? 0 : ctrl_block->sharedCount;
+                return ctrl_block==nullptr ? 0 : (size_t)ctrl_block->sharedCount;
             }
             bool expired(){
                 return ctrl_block==nullptr ? true : !ctrl_block->sharedCount;

@@ -1,22 +1,22 @@
 #pragma once
 #include "../arrays.hpp"
 namespace mpv{
-template<typename T,size_t size>
+template<typename T,size_t length>
     class Array COUNT_IT{
-        static_assert(size!=0,"array size cannot be 0");
+        static_assert(length!=0,"array length cannot be 0");
         protected:
-            T buffer[size];
+            T buffer[length];
         public:
-            static constexpr size_t len(){
-                return size;
+            static constexpr size_t size(){
+                return length;
             }
             Array()=default;
             Array(const Array&)=default;
             Array(Array&&)=default;
             Array& operator=(const Array&)=default;
             Array& operator=(Array&&)=default;
-            Array(const T(&list)[size]){
-                for(size_t i=0;i<size;i++)
+            Array(const T(&list)[length]){
+                for(size_t i=0;i<length;i++)
                     buffer[i]=list[i];
             }
 //            template<typename... Args>
@@ -28,29 +28,29 @@ template<typename T,size_t size>
                 return buffer[index];
             }
             void sort(){
-                dflt::insertion_sort(buffer,size);
+                dflt::insertion_sort(buffer,length);
             }
             void sort_reverse(){
-                dflt::insertion_sort_reverse(buffer,size);
+                dflt::insertion_sort_reverse(buffer,length);
             }
             template<typename D>
             void sort(D(*func)(const T&)){
-                dflt::insertion_sort(buffer,size,func);
+                dflt::insertion_sort(buffer,length,func);
             }
             template<typename Cmp>
             void sort(Cmp&& cmp=Cmp{}){
-                dflt::insertion_sort<T,Cmp>(buffer,size,static_cast<Cmp&&>(cmp));
+                dflt::insertion_sort<T,Cmp>(buffer,length,static_cast<Cmp&&>(cmp));
             }
             Array operator+(const Array& other)const{
                 Array new_array;
-                for(size_t i=0;i<size;i++){
+                for(size_t i=0;i<length;i++){
                     new_array[i]=(*this)[i]+other[i];
                 }
                 return new_array;
             }
             Array operator-(const Array& other)const{
                 Array new_array;
-                for(size_t i=0;i<size;i++){
+                for(size_t i=0;i<length;i++){
                     new_array[i]=(*this)[i]-other[i];
                 }
                 return new_array;
@@ -58,82 +58,82 @@ template<typename T,size_t size>
             template<typename U,typename=enable_if_t<is_convertible_v<U,T>>>
             Array operator*(U scalar)const{
                 Array new_array;
-                for(size_t i=0;i<size;i++){
+                for(size_t i=0;i<length;i++){
                     new_array[i]=(*this)[i]*scalar;
                 }
                 return new_array;
             }
             Array operator-()const{
                 Array new_array;
-                for(size_t i=0;i<size;i++){
+                for(size_t i=0;i<length;i++){
                     new_array[i]=-(*this)[i];
                 }
                 return new_array;
             }
             Array operator+()const{
                 Array new_array;
-                for(size_t i=0;i<size;i++){
+                for(size_t i=0;i<length;i++){
                     new_array[i]=+(*this)[i];
                 }
                 return new_array;
             }
             T operator*(const Array& other)const{
                 T n=0;
-                for(size_t i=0;i<size;i++){
+                for(size_t i=0;i<length;i++){
                     n+=(*this)[i]*other[i];
                 }
                 return n;
             }
             void operator+=(const Array& other){
-                for(size_t i=0;i<size;i++){
+                for(size_t i=0;i<length;i++){
                     (*this)[i]+=other[i];
                 }
             }
             void operator-=(const Array& other){
-                for(size_t i=0;i<size;i++){
+                for(size_t i=0;i<length;i++){
                     (*this)[i]-=other[i];
                 }
             }
             template<typename U,typename=enable_if_t<is_convertible_v<U,T>>>
             void operator*=(U scalar){
-                for(size_t i=0;i<size;i++){
+                for(size_t i=0;i<length;i++){
                     (*this)[i]*=scalar;
                 }
             }
             double norm()const{
                 double sum=0;
-                for(size_t i=0;i<size;i++){
+                for(size_t i=0;i<length;i++){
                     sum+=(*this)[i]*(*this)[i];
                 }
                 return mpv::sqrt(sum);
             }
-            Array<double,size> make_versor(){
-                Array<double,size> new_vec;
+            Array<double,length> make_versor(){
+                Array<double,length> new_vec;
                 double n=1/(*this).norm();
-                for(size_t i=0;i<size;i++){
+                for(size_t i=0;i<length;i++){
                     new_vec[i]=(*this)[i]*n;
                 }
                 return new_vec;
             }
-            Array<double,size> make_neg_versor(){
-                Array<double,size> new_vec;
+            Array<double,length> make_neg_versor(){
+                Array<double,length> new_vec;
                 double n=1/(*this).norm();
-                for(size_t i=0;i<size;i++){
+                for(size_t i=0;i<length;i++){
                     new_vec[i]=-(*this)[i]*n;
                 }
                 return new_vec;
             }
             bool operator==(const Array& other)const{
-                for(size_t i=0;i<size;i++)
+                for(size_t i=0;i<length;i++)
                     if((*this)[i]!=other[i]) return false;
                 return true;
             }
             bool operator!=(const Array& other)const{
-                for(size_t i=0;i<size;i++)
+                for(size_t i=0;i<length;i++)
                     if((*this)[i]!=other[i]) return true;
                 return false;
             }
-            template<size_t s=size,typename=enable_if_t<s==3>>
+            template<size_t s=length,typename=enable_if_t<s==3>>
             Array<T,3> operator%(const Array<T,3>& other)const{
                 Array<T,3> new_array;
                 new_array[0]=(*this)[1]*other[2]-other[1]*(*this)[2];
@@ -141,7 +141,7 @@ template<typename T,size_t size>
                 new_array[2]=(*this)[0]*other[1]-other[0]*(*this)[1];
                 return new_array;
             }
-            template<size_t s=size,typename=enable_if_t<s==3>>
+            template<size_t s=length,typename=enable_if_t<s==3>>
             void operator%=(const Array<T,3>& other){
                 Array<T,3> aux=*this;
                 (*this)[0]=aux[1]*other[2]-other[1]*aux[2];
@@ -149,19 +149,19 @@ template<typename T,size_t size>
                 (*this)[2]=aux[0]*other[1]-other[0]*aux[1];
             }
     };
-    template<typename T,size_t size,typename U,typename=enable_if_t<is_convertible_v<U,T>,U>>
-    Array<T,size> operator*(U scalar,const Array<T,size>& vec){
+    template<typename T,size_t length,typename U,typename=enable_if_t<is_convertible_v<U,T>,U>>
+    Array<T,length> operator*(U scalar,const Array<T,length>& vec){
         return vec*scalar;
     }
 #if __cplusplus>=201703
     template<typename T,typename... Args> Array(T,Args...)->Array<enable_if_t<are_same_v<T,Args...>,T>,sizeof...(Args)+1>;
 #endif
-    template<typename Out,typename T,size_t size>
-    Out& operator<<(Out& stream,const Array<T,size>& array){
+    template<typename Out,typename T,size_t length>
+    Out& operator<<(Out& stream,const Array<T,length>& array){
         stream<<'(';
-        for(size_t i=0;i<size;i++){
+        for(size_t i=0;i<length;i++){
             stream<<array[i];
-            if(i<size-1)
+            if(i<length-1)
                 stream<<", ";		
         }
         return stream<<')';

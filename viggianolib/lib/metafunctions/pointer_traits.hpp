@@ -59,10 +59,32 @@ namespace mpv{
         using difference_type=ptrdiff_t;
         template<typename U> using rebind=U*;
         static constexpr pointer pointer_to(make_not_void<element_type>& x)noexcept{
-            return __builtin_addressof(x);
+            //return __builtin_addressof(x);
+            return &x;
         }
     };
     template<typename Pointer,typename T>
     using rebind_pointer=typename pointer_traits<Pointer>::template rebind<T>;
     
+    template<typename Pointer> struct is_fancy:true_type{};
+    template<typename T> struct is_fancy<T*>:false_type{};
+    template<typename Pointer> constexpr bool is_fancy_v=is_fancy<Pointer>::value;
+
+    template<typename Fancy>
+    constexpr auto unfancy(Fancy ptr)noexcept{
+        return &(*ptr);
+    }
+    template<typename T>
+    constexpr T* unfancy(T* ptr)noexcept{
+        return ptr;
+    }
+    template<typename Fancy>
+    constexpr auto unfancy_maybe_null(Fancy ptr)noexcept{
+        return ptr ? &(*ptr) : nullptr;
+    }
+    template<typename T>
+    constexpr T* unfancy_maybe_null(T* ptr)noexcept{
+        return ptr;
+    }
+
 }

@@ -6,7 +6,7 @@ namespace mpv{
 			using base_type=T;
 		public:
 			constexpr explicit EBCO():T(){}
-			template<typename U,enable_if_t<not is_same_v<remove_cvref_t<U>,EBCO>,int> = 0> constexpr explicit EBCO(U&& val):T(static_cast<U&&>(val)){}
+			template<typename U,enable_if_t<!is_same_v<remove_cvref_t<U>,EBCO>,int> = 0> constexpr explicit EBCO(U&& val):T(static_cast<U&&>(val)){}
 			constexpr T& get_val()noexcept{ return *this; }
 			constexpr const T& get_val()const noexcept{ return *this; }
 	};
@@ -16,7 +16,7 @@ namespace mpv{
 			T val;
 		public:
 			constexpr explicit EBCO():val(){}
-			template<typename U,enable_if_t<not is_same_v<remove_cvref_t<U>,EBCO>,int> = 0> constexpr explicit EBCO(U&& val):val(static_cast<U&&>(val)){}
+			template<typename U,enable_if_t<!is_same_v<remove_cvref_t<U>,EBCO>,int> = 0> constexpr explicit EBCO(U&& val):val(static_cast<U&&>(val)){}
 			constexpr T& get_val()noexcept{ return val;}
 			constexpr const T& get_val()const noexcept{ return val; }
 	};
