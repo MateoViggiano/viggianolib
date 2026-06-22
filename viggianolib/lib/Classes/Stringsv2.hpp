@@ -1857,9 +1857,11 @@ namespace mpv{
 	template<typename Int,typename String_type=String,unsigned short base=10>
 	constexpr String_type to_str(Int num){
 		String_type new_str,aux;
-		if(num<0){
-			num=-num;
-			new_str='-';
+		if constexpr (mpv::is_signed_v<Int>) {
+			if(num<0){
+				num=-num;
+				new_str='-';
+			}
 		}
 		do{
 			aux+=to_char(num%base);

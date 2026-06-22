@@ -1,28 +1,7 @@
 #pragma once
 #include"Classes/Optional.hpp"
 #include"Classes/TemporaryOwners.hpp"
-// #ifdef _INC_STRING
-// #define USE_MEMCPY 1
-// #else
-// #define USE_MEMCPY 0
-// #endif
-
-// #if USE_MEMCPY == 0
-// #define MEMCPY(TO,FROM,SIZE) ;	//evita error de compilacion si memcpy no existe
-// #define MEMMOVE(TO,FROM,SIZE) ;	//evita error de compilacion si memmove no existe
-// #define STRCPY(TO,FROM) ;
-// #define WCSCPY(TO,FROM) ;
-// #define RETURN_STRLEN(S) ;
-// #define RETURN_WCSLEN(S) ;
-// #else
-// #define MEMCPY(TO,FROM,SIZE) ::memcpy(TO,FROM,SIZE);
-// #define MEMMOVE(TO,FROM,SIZE) ::memmove(TO,FROM,SIZE);
-// #define STRCPY(TO,FROM) ::strcpy(TO,FROM);
-// #define WCSCPY(TO,FROM) ::wcscpy(TO,FROM);
-// #define RETURN_STRLEN(S) return ::strlen(S);
-// #define RETURN_WCSLEN(S) return ::wcslen(S);
-// #endif
-
+#pragma warning(disable : 4996)
 namespace mpv{
 	template<typename> class Optional;
 	namespace dflt{//default types
