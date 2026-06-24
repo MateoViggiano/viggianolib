@@ -1,0 +1,31 @@
+#if (!defined(_INITIALIZER_LIST) && !defined(_INITIALIZER_LIST_) && !defined(__linux__)) || defined(USE_MPV_INITIALIZER_LIST)
+#define MPV_INITIALIZER_LIST
+#define _INITIALIZER_LIST
+#define _INITIALIZER_LIST_
+namespace std{
+  	template<class T>
+  	class initializer_list{
+		private:
+			const T* beg;
+			size_t len;
+			constexpr initializer_list(const T* beg,size_t len)noexcept:beg(beg),len(len){}
+
+		public:
+			constexpr initializer_list(const T* beg,const T* end)noexcept:beg(beg),len(end-beg){}
+			constexpr initializer_list() noexcept :beg(nullptr),len(0){}
+			constexpr const T* begin()const noexcept{return beg;}
+			constexpr const T* end()const noexcept{return beg+len;}
+			constexpr size_t size()const noexcept{return len;}
+ 	};
+	template <class T>
+	constexpr const T* begin(initializer_list<T> Ilist) noexcept {
+		return Ilist.begin();
+	}
+	template <class T>
+	constexpr const T* end(initializer_list<T> Ilist) noexcept {
+		return Ilist.end();
+	}
+}
+#elif defined(__linux__)
+#include<initializer_list>
+#endif
