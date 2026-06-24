@@ -55,8 +55,6 @@ namespace mpv{
         public:
             using Base = Vector<unsigned char>;
             using Base::Base;
-            template<typename T>
-            Bytes(const Serialized<T> val):Base(val.bytearray,val.bytearray+sizeof(val)){}
             Bytes(const Vector<unsigned char>& vec):Base(vec){}
             Bytes operator+(const Bytes& other)const&{
                 return this->Base::operator+(other);
@@ -92,7 +90,7 @@ namespace mpv{
             }
         };
         template<typename T>
-        Bytes operator+(Serialized<T> fst,const Bytes& scnd){
+        Bytes operator+(const Serialized<T> fst,const Bytes& scnd){
             Bytes res(sizeof(fst)+scnd.size());
             *reinterpret_cast<Serialized<T>*>(res.get_array())=fst;
             mpv::copy(res.begin()+sizeof(fst),scnd.begin(),scnd.end());
@@ -100,7 +98,8 @@ namespace mpv{
         }
         template<typename T>
         constexpr enable_if_t<is_trivially_copyable_v<T>,Bytes> to_bytes(const T& val){
-            return Serialized<T>(val);
+            const unsigned char* p = reinterpret_cast<const unsigned char*>(&val);
+            return Vector<unsigned char>(p,p+sizeof(T));
         }
         template<typename T,typename U>
         Bytes to_bytes(const MapPair<T,U>& pair){
@@ -128,7 +127,7 @@ namespace mpv{
             return Bytes(data);
         }
         template<typename T>
-        Bytes to_bytes(NullTerminatedArray<T> array){
+        enable_if_t<is_trivially_copyable_v<T>,Bytes> to_bytes(NullTerminatedArray<T> array) {
             return Bytes(reinterpret_cast<const unsigned char*>(array.ptr),reinterpret_cast<const unsigned char*>(array.ptr)+(array.size+1)*sizeof(T));
         }
         template<typename,typename=void> struct Deserialize{};
