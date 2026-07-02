@@ -141,7 +141,7 @@ namespace mpv{
             }
             constexpr Optional<mapped_type> pop_at(const key_type& key){
                 Optional<value_type> x=this->pop_elem(key);
-                if(x.has_value()) return x->val;
+                if(x.has_value())return mpv::move(x->val);
                 else return {};
             }
             constexpr MapKeys<Map> keys()const{
