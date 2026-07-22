@@ -30,6 +30,7 @@ namespace mpv{
                 other.node_alloc.reset();
             }
             HandleBase& operator=(HandleBase&& other){
+                if(this==&other) return *this;
                 destroy();
                 node=other.node;
                 if constexpr(is_move_assignable_v<NodeAlloc>){
@@ -39,6 +40,7 @@ namespace mpv{
                 }
                 other.node=nullptr;
                 other.node_alloc.reset();
+                return *this;
             }
             constexpr allocator_type get_allocator()const noexcept{
                 return allocator_type(*node_alloc);
