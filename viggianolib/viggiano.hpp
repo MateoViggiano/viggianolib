@@ -1,3 +1,4 @@
+#pragma once
 #ifndef VIGGIANO_H
 #define VIGGIANO_H
 #ifdef __linux__

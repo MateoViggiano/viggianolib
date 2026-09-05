@@ -67,8 +67,8 @@ namespace mpv{
         public:
             using base=HandleBase<Val,NodeAlloc>;
             using typename base::NodePtr;
-            using key_type=Val::key_type;
-            using mapped_type=Val::mapped_type;
+            using key_type=typename Val::key_type;
+            using mapped_type=typename Val::mapped_type;
             constexpr NodeHandle()noexcept=default;
             NodeHandle(NodeHandle&&)noexcept=default;
             NodeHandle& operator=(NodeHandle&&)noexcept=default;
