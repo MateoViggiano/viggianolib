@@ -363,21 +363,21 @@ namespace mpv{
                 }
             }
             template<typename Lambda>
-            constexpr void pre_order_helper(NodePtr node,Lambda& func){
+            constexpr void pre_order_helper(NodePtr node,Lambda& func)const{
                 if(is_null(node)) return;
                 func(node->data);
                 pre_order_helper(node->left,func);
                 pre_order_helper(node->right,func);
             }
             template<typename Lambda>
-            constexpr void in_order_helper(NodePtr node,Lambda& func){
+            constexpr void in_order_helper(NodePtr node,Lambda& func)const{
                 if(is_null(node)) return;
                 in_order_helper(node->left,func);
                 func(node->data);
                 in_order_helper(node->right,func);
             }
             template<typename Lambda>
-            constexpr void post_order_helper(NodePtr node,Lambda& func){
+            constexpr void post_order_helper(NodePtr node,Lambda& func)const{
                 if(is_null(node)) return;
                 post_order_helper(node->left,func);
                 post_order_helper(node->right,func);
@@ -1271,6 +1271,7 @@ namespace mpv{
                 return iterator(sent);
             }
             template<typename Out,typename Traits_> friend Out& operator<<(Out&,const Tree<Traits_>&);
+
 #undef root
 #undef alloc
 #undef left_most
