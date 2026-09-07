@@ -36,8 +36,8 @@ namespace mpv{
 	};
 	template<typename T,typename VoidPtr>
 	struct List_Node:public Base_List_Node<T,VoidPtr>{
-		using NodePtr=typename Base_List_Node<T,VoidPtr>::NodePtr;
-		using const_NodePtr=typename Base_List_Node<T,VoidPtr>::const_NodePtr;
+		//using NodePtr=typename Base_List_Node<T,VoidPtr>::NodePtr;
+		//using const_NodePtr=typename Base_List_Node<T,VoidPtr>::const_NodePtr;
 		T data;
 		template<typename... Args>
 		constexpr List_Node(Args&&... args)noexcept(is_nothrow_constructible_v<T,Args...>):data(static_cast<Args&&>(args)...){}
@@ -177,12 +177,13 @@ namespace mpv{
 		private:
 			using BaseNode=Base_List_Node<T,typename allocator_traits<Alloc>::void_pointer>;
 			using Node=List_Node<T,typename allocator_traits<Alloc>::void_pointer>;
-			using NodePtr=typename Node::NodePtr;
-			using const_NodePtr=typename Node::const_NodePtr;
 			using AlTy=rebind_alloc<Alloc,T>;
 			using AlTy_traits=allocator_traits<AlTy>;
 			using AlNode=rebind_alloc<Alloc,Node>;
-			using AlNode_traits=allocator_traits<AlNode>;
+			using AlNode_traits=allocator_traits<AlNode>;			
+			using NodePtr=typename AlNode_traits::pointer;
+			using const_NodePtr=typename AlNode_traits::const_pointer;
+
 			struct Val_types{
 				using value_type=T;
 				using size_type=typename AlTy_traits::size_type;
@@ -191,8 +192,8 @@ namespace mpv{
 				using const_pointer=typename AlTy_traits::const_pointer;
 				using reference=T&;
 				using const_reference=const T&;
-				using NodePtr=typename Node::NodePtr;
-				using const_NodePtr=typename Node::const_NodePtr;
+				using NodePtr=typename AlNode_traits::pointer;
+				using const_NodePtr=typename AlNode_traits::const_pointer;
 			};
 		public:
             static constexpr bool POCCA=AlTy_traits::propagate_on_container_copy_assignment::value;

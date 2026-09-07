@@ -272,12 +272,12 @@ namespace mpv{
 			using Node=Tree_Node<value_type,typename allocator_traits<Alloc>::void_pointer>;
             using TempNode=Temp_Tree_Node<value_type,typename allocator_traits<Alloc>::void_pointer>;
             using BaseNode=Base_Tree_Node<value_type,typename allocator_traits<Alloc>::void_pointer>;
-			using NodePtr=typename Node::NodePtr;
-            using const_NodePtr=typename Node::const_NodePtr;
 			using AlTy=rebind_alloc<Alloc,value_type>;
 			using AlTy_traits=allocator_traits<AlTy>;
 			using AlNode=rebind_alloc<Alloc,Node>;
 			using AlNode_traits=allocator_traits<AlNode>;
+			using NodePtr=typename AlNode_traits::pointer;
+            using const_NodePtr=typename AlNode_traits::const_pointer;
 			struct Val_types{
 				using value_type=typename Traits::value_type;
 				using size_type=typename AlTy_traits::size_type;
@@ -286,8 +286,8 @@ namespace mpv{
 				using const_pointer=typename AlTy_traits::const_pointer;
 				using reference=value_type&;
 				using const_reference=const value_type&;
-				using NodePtr=typename Node::NodePtr;
-                using const_NodePtr=typename Node::const_NodePtr;
+				using NodePtr=typename AlNode_traits::pointer;
+                using const_NodePtr=typename AlNode_traits::const_pointer;
 			};
             static constexpr bool POCCA=AlTy_traits::propagate_on_container_copy_assignment::value;
             static constexpr bool POCMA=AlTy_traits::propagate_on_container_move_assignment::value;
