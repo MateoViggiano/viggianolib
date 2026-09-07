@@ -36,8 +36,6 @@ namespace mpv{
 	};
 	template<typename T,typename VoidPtr>
 	struct List_Node:public Base_List_Node<T,VoidPtr>{
-		//using NodePtr=typename Base_List_Node<T,VoidPtr>::NodePtr;
-		//using const_NodePtr=typename Base_List_Node<T,VoidPtr>::const_NodePtr;
 		T data;
 		template<typename... Args>
 		constexpr List_Node(Args&&... args)noexcept(is_nothrow_constructible_v<T,Args...>):data(static_cast<Args&&>(args)...){}
