@@ -320,7 +320,7 @@ namespace mpv{
     }
     template<typename Out,typename T>
     Out& operator<<(Out& stream,const Optional<T>& opt){
-    	if(opt.has_value()) stream<<opt.value();
+    	if(opt.has_value()) stream<<""<<opt.value();
     	else stream<<"<empty>";
     	return stream;
     }

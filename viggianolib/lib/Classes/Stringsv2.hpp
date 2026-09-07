@@ -1836,7 +1836,8 @@ namespace mpv{
 	Out& operator<<(Out& stream,const Str<T,Alloc,params>& string){
 		//const typename Str<T,Alloc,params>::value_type* c_string=string.c_str();
 		//stream.write(c_string,string.size());
-		return stream<<string.c_str();
+		stream<<string.c_str();
+		return stream;
 	}
 	#ifndef STR_ENDLINE
 	#define STR_ENDLINE '\n'

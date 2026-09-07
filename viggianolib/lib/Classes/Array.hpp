@@ -192,12 +192,13 @@ template<typename T,size_t len>
 #endif
     template<typename Out,typename T,size_t length>
     Out& operator<<(Out& stream,const Array<T,length>& array){
-        stream<<'(';
+        stream<<"(";
         for(size_t i=0;i<length;i++){
-            stream<<array[i];
+            stream<<""<<array[i];
             if(i<length-1)
                 stream<<", ";		
         }
-        return stream<<')';
+        stream<<")";
+        return stream;
     }
 }

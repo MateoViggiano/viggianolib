@@ -1280,7 +1280,7 @@ namespace mpv{
     };
     template<typename Out,typename Traits>
     Out& operator<<(Out& stream,const Tree<Traits>& tree){
-        stream<<'[';
+        stream<<"[";
         auto it(tree.begin());
         auto it_end(tree.end());
         while(it!=it_end){
@@ -1288,6 +1288,7 @@ namespace mpv{
             if(++it!=it_end)
                 stream<<", ";
         }
-        return stream<<']';
+        stream<<"]";
+        return stream;
     }
 }

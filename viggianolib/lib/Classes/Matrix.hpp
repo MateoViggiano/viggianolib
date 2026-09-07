@@ -189,14 +189,15 @@ namespace mpv{
     }
     template<typename Out,typename T,size_t R,size_t C>
     Out& operator<<(Out& stream,const Matrix<T,R,C>& matrix){
-        stream<<'(';
+        stream<<"(";
         for(size_t i=0;i<R;i++){
             for(size_t j=0;j<C;j++){
-                stream<<matrix[i][j];
+                stream<<""<<matrix[i][j];
                 if(j!=C-1) stream<<",\t";
             }
             if(i!=R-1) stream<<"\n";
         }
-        return stream<<')';
+        stream<<")";
+        return stream;
     }
 }

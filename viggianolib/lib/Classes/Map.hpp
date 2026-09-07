@@ -187,7 +187,7 @@ namespace mpv{
     };
     template<typename Out,typename T,typename D>
     Out& operator<<(Out& stream,const MapPair<T,D>& pair){
-        stream<<'{'<<pair.key<<" : "<<pair.val<<'}';
+        stream<<"{"<<pair.key<<" : "<<pair.val<<"}";
         return stream;
     }
     template<typename Map_t>
@@ -435,26 +435,28 @@ namespace mpv{
     };
     template<typename Out,typename Map_t>
     Out& operator<<(Out& stream,const MapKeys<Map_t>& keys){
-        stream<<'[';
+        stream<<"[";
         auto it(keys.begin());
         auto it_end(keys.end());
         while(it!=it_end){
-            stream<<*it;
+            stream<<""<<*it;
             if(++it!=it_end)
                 stream<<", ";
         }
-        return stream<<']';
+        stream<<"]";
+        return stream;
     }
     template<typename Out,typename Map_t>
     Out& operator<<(Out& stream,const MapValues<Map_t>& values){
-        stream<<'[';
+        stream<<"[";
         auto it(values.begin());
         auto it_end(values.end());
         while(it!=it_end){
-            stream<<*it;
+            stream<<""<<*it;
             if(++it!=it_end)
                 stream<<", ";
         }
-        return stream<<']';
+        stream<<"]";
+        return stream;
     }
 }

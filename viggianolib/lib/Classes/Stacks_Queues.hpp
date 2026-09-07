@@ -324,13 +324,14 @@ namespace mpv{
 	};
 	template<typename Out,typename T,typename Alloc>
 	Out& operator<<(Out& stream,const Queue<T,Alloc>& queue){
-		stream<<'[';
+		stream<<"[";
 		for(typename Queue<T,Alloc>::const_iterator i=queue.begin();i!=queue.end();){
-			stream<<*i;
+			stream<<""<<*i;
 			if(++i!=queue.end())
 				stream<<", ";		
 		}
-		return stream<<']';
+		stream<<"]";
+		return stream;
 	}
 	template<typename T,typename Alloc=allocator<T>>
 	class Stack COUNT_IT{
@@ -529,13 +530,14 @@ namespace mpv{
 	};
 	template<typename Out,typename T,typename Alloc>
 	Out& operator<<(Out& stream,const Stack<T,Alloc>& queue){
-		stream<<'[';
+		stream<<"[";
 		for(typename Stack<T,Alloc>::const_iterator i=queue.begin();i!=queue.end();){
-			stream<<*i;
+			stream<<""<<*i;
 			if(++i!=queue.end())
 				stream<<", ";		
 		}
-		return stream<<']';
+		stream<<"]";
+		return stream;
 	}
 #undef alloc
 #undef head

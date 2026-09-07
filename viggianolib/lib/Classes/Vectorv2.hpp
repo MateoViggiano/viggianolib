@@ -838,13 +838,13 @@ namespace mpv{
     };
     template<typename Out,typename T,typename Alloc,typename realloc_params>
     Out& operator<<(Out& stream,const Vector<T,Alloc,realloc_params>& list){
-        stream<<'[';
+        stream<<"[";
         for(typename Vector<T,Alloc,realloc_params>::size_type i=0,length=list.size();i<length;i++){
-            stream<<list[i];
+            stream<<""<<list[i];
             if(i<length-1)
                 stream<<", ";
         }
-        stream<<']';
+        stream<<"]";
         return stream;
     }
 #if defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_)

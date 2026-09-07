@@ -1022,28 +1022,17 @@ namespace mpv{
 			template<typename t,typename Alloc_>friend void debug(const List<t,Alloc_>&);
 	};
 	template<typename Out,typename T,typename Alloc>
-	Out& reverse_print(Out& stream,const List<T,Alloc>& list){
-		stream<<'[';
-		typename List<T,Alloc>::const_iterator i=list.end();
-		i--;
-		for(;i!=list.rend();i--){
-			stream<<*i;
-			if(i!=list.begin())
-				stream<<", ";		
-		}
-		return stream<<']';
-	}
-	template<typename Out,typename T,typename Alloc>
 	Out& operator<<(Out& stream,const List<T,Alloc>& list){
-		stream<<'[';
+		stream<<"[";
 		typename List<T,Alloc>::const_iterator last=list.end();
 		--last;
 		for(typename List<T,Alloc>::const_iterator i=list.begin();i!=list.end();i++){
-			stream<<*i;
+			stream<<""<<*i;
 			if(i!=last)
 				stream<<", ";		
 		}
-		return stream<<']';
+		stream<<"]";
+		return stream;
 	}
 #if defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_)
     template<typename T,typename Alloc>

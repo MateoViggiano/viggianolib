@@ -221,15 +221,15 @@ namespace mpv{
 	}
 	template<typename Out,typename T,size_t size>
 	enable_if_t<!is_same_v<remove_cv_t<T>,char> && !is_same_v<remove_cv_t<T>,wchar_t>,Out&> operator<<(Out& stream,T (&a)[size]){
-        stream<<'[';
+        stream<<"[";
         for(size_t i=0;i<size;i++){
 			if constexpr(is_same_v<remove_cv_t<T>,unsigned char> || is_same_v<remove_cv_t<T>,signed char>){
-				stream<<static_cast<short>(a[i]);
+				stream<<""<<static_cast<short>(a[i]);
 			}
-            else stream<<a[i];
+            else stream<<""<<a[i];
 			if(i<size-1) stream<<", ";
         }
-        stream<<']';
+        stream<<"]";
 		return stream;
 	}
 }

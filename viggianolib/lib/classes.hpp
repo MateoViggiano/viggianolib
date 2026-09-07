@@ -125,7 +125,7 @@ namespace mpv{
     template<typename Out>
     Out& operator<<(Out& stream,const byte b){
 		for(unsigned char i=0;i<8;i++){
-			stream<<b.get(i);
+			stream<<""<<b.get(i);
 		}
         return stream;
     }
@@ -153,7 +153,7 @@ namespace mpv{
 	};
 	template<typename Out,typename T1,typename T2>
 	Out& operator<<(Out& stream,const Pair<T1,T2>& pair){
-		stream<<'('<<pair.x1<<','<<pair.x2<<')';
+		stream<<"("<<pair.x1<<","<<pair.x2<<")";
 		return stream;
 	}
 	template<typename T>

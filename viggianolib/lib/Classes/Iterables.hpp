@@ -129,14 +129,15 @@ namespace mpv{
 	template<typename T,typename U> Range(T,U)->Range<T,U>;
     template<typename Out,typename T,typename U>
     Out& operator<<(Out& stream,const Range<T,U>& range){
-        stream<<'[';
+        stream<<"[";
         auto it(range.begin());
         auto it_end(range.end());
         while(it!=it_end){
-            stream<<*it;
+            stream<<""<<*it;
             if(++it!=it_end)
                 stream<<", ";
         }
-        return stream<<']';
+		stream<<"]";
+        return stream;
     }
 }
