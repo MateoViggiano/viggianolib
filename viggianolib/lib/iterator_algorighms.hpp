@@ -250,7 +250,7 @@ namespace mpv{
 		if constexpr(!is_bitcopy_move_constructible_iter_v<InIt,OutIt>){
 			DestroySequenceGuard<Alloc,OutIt> guard(alloc,dest);
 			while(first!=last){
-				allocator_traits<Alloc>::construct(alloc,unfancy(dest++),move_if_noexcept(*(first++)));
+				allocator_traits<Alloc>::construct(alloc,unfancy(dest++),mpv::move_if_noexcept(*(first++)));
 				++guard.count;
 			}
 			guard.count=0;
@@ -435,7 +435,7 @@ namespace mpv{
 			if(size>0){
 				DestroySequenceGuard<Alloc,OutIt> guard(alloc,dest);
 				while(true){
-					allocator_traits<Alloc>::construct(alloc,unfancy(dest++),move_if_noexcept(*(first)));
+					allocator_traits<Alloc>::construct(alloc,unfancy(dest++),mpv::move_if_noexcept(*(first)));
 					++guard.count;
 					if(--size==0) break;
 					++first;
