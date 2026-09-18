@@ -4,8 +4,9 @@
 #define VECTOR_MMS 16 //min max_size
 #endif
 namespace mpv{
+    template<typename,typename,typename> class HoleVector;
     template<typename T,typename Alloc=allocator<T>,typename realloc_params=params<typename allocator_traits<Alloc>::template rebind_traits<T>::size_type,VECTOR_MMS,2>>
-    class Vector COUNT_IT {static_assert(realloc_params::p1>0,"min_maxLen cannot be less than 1");
+    class Vector COUNT_IT {static_assert(realloc_params::p1>0,"min_maxLen cannot be less than 1");static_assert(realloc_params::p2>0,"realloc_factor cannot be less than 1");
         private:
             using AlTy=rebind_alloc<Alloc,T>;
             using AlTy_traits=allocator_traits<AlTy>;
@@ -24,6 +25,7 @@ namespace mpv{
             static constexpr bool POCMA=AlTy_traits::propagate_on_container_move_assignment::value;
             static constexpr bool POCS=AlTy_traits::propagate_on_container_swap::value;
             static constexpr bool ALWAYS_EQ=AlTy_traits::is_always_equal::value;
+            template<typename,typename,typename> friend class HoleVector;
         public:
 			using allocator_type=Alloc;
 			using value_type=typename Val_types::value_type;
@@ -48,8 +50,9 @@ namespace mpv{
 
             struct Guard{
                 AlTy& al;
-                size_type length=0,max_length;
+                size_type length=0,max_length=0;
                 pointer array=nullptr;
+                constexpr Guard(AlTy& al):al(al){}
                 constexpr Guard(AlTy& al,size_type max_length):al(al),max_length(max_length),array(max_length>0? AlTy_traits::allocate(al,max_length) : nullptr){}
                 constexpr Guard(AlTy& al,const Vector& v):al(al),max_length(v.length*realloc_factor),array(max_length>0? AlTy_traits::allocate(al,max_length) : nullptr){}
                 constexpr void transfer_to(Vector& v)noexcept{
@@ -57,6 +60,32 @@ namespace mpv{
                     v.maxLen=this->max_length;
                     v.length=this->length;
                     this->array=nullptr;
+                }
+                constexpr void transfer_to(Guard& g)noexcept{
+                    g.array=this->array;
+                    g.max_length=this->max_length;
+                    g.length=this->length;
+                    this->array=nullptr;
+                }
+                template<typename... Args>
+                constexpr void emplace_back(Args&&... args){
+                    if(length==max_length){
+                        Guard guard(al,max_length==0 ? min_maxLen : (max_length+1)*realloc_factor);
+                        CONSTRUCT_VARARGS(al,guard.array+length,static_cast<Args&&>(args));
+                        DestroyGuard tempguard(al,guard.array+length);
+                        move_construct_if_nt_n(al,guard.array,array,length);
+                        tempguard.destroy=false;
+                        guard.length=length+1;
+                        if(array){
+                            destroy_n(al,array,length);
+                            AlTy_traits::deallocate(al,array,max_length);
+                        }
+                        guard.transfer_to(*this);
+                    }
+                    else{
+                        CONSTRUCT_VARARGS(al,array+length,static_cast<Args&&>(args));
+                        length++;
+                    }
                 }
                 ~Guard()noexcept{
                     if(array){
@@ -269,10 +298,10 @@ namespace mpv{
             constexpr Vector()noexcept(is_nothrow_default_constructible_v<AlTy>) = default;
             constexpr explicit Vector(const Alloc& al)noexcept:cp(arg1_tag{},al){}
             constexpr Vector(const Vector& other):cp(arg1_tag{},AlTy_traits::select_on_container_copy_construction(other.alloc),0){
-                this->allocate_and_assign_counted_range(other.array,other.length);
+                this->allocate_and_assign_counted_range(const_pointer(other.array),other.length);
             }
             constexpr Vector(const Vector& other,const Alloc& al):cp(arg1_tag{},al,0){
-                this->allocate_and_assign_counted_range(other.array,other.length);
+                this->allocate_and_assign_counted_range(const_pointer(other.array),other.length);
             }
             constexpr Vector(Vector&& other)noexcept:cp(arg1_tag{},static_cast<AlTy&&>(other.alloc),other.maxLen),length(other.length),array(other.array){
                 other.reset();
@@ -309,7 +338,9 @@ namespace mpv{
                     this->allocate_and_assign_counted_range(first,distance(first,last));
                 }
                 else{
-                    while(first!=last) push_back(*first++);
+                    Guard guard(alloc);
+                    while(first!=last) guard.emplace_back(*first++);
+                    guard.transfer_to(*this);
                 }
             }
             constexpr Vector(std::initializer_list<value_type> initlist,const Alloc& al=Alloc()):cp(arg1_tag{},al,0){
@@ -323,7 +354,7 @@ namespace mpv{
                     }
                 }
                 pocca(this->alloc,other.alloc);
-                this->assign_counted_range(other.array,other.length);
+                this->assign_counted_range(const_pointer(other.array),other.length);
                 return *this;
             }
             constexpr Vector& operator=(Vector&& other)noexcept(ALWAYS_EQ || POCMA){
@@ -352,7 +383,7 @@ namespace mpv{
             }
             constexpr Vector operator+(const Vector& other)&&{
                 Vector new_vec(static_cast<Vector&&>(*this));
-                new_vec.append_counted_range(other.array,other.length);
+                new_vec.append_counted_range(const_pointer(other.array),other.length);
                 return new_vec;
             }
             constexpr Vector operator+(Vector&& other)&&{
@@ -368,7 +399,7 @@ namespace mpv{
                 }
             }
             constexpr Vector& operator+=(const Vector& other){
-                this->append_counted_range(other.array,other.length);
+                this->append_counted_range(const_pointer(other.array),other.length);
                 return *this;
             }
             constexpr Vector& operator+=(Vector&& other){
@@ -419,29 +450,7 @@ namespace mpv{
             constexpr void push_back(value_type&& val){emplace_back(static_cast<value_type&&>(val));}
             template<typename... Args>
             constexpr iterator emplace(const_iterator pos,Args&&... args){
-                size_type index=pos-begin();
-                if(length==maxLen){
-                    Guard guard(alloc,maxLen==0 ? min_maxLen : (maxLen+1)*realloc_factor);
-                    CONSTRUCT_VARARGS(this->alloc,guard.array+index,static_cast<Args&&>(args));
-                    DestroyGuard tempguard(alloc,guard.array+index);
-                    move_construct_if_nt_n(this->alloc,guard.array,array,index);
-                    tempguard.destroy=false;
-                    guard.length=index+1;
-                    move_construct_if_nt_n(this->alloc,guard.array+index+1,array+index,length-index);guard.length=this->length+1;
-                    this->destroy_and_free();
-                    guard.transfer_to(*this);
-                }
-                else{
-                    if(index==length){
-                        CONSTRUCT_VARARGS(this->alloc,array+length,static_cast<Args&&>(args));length++;
-                    }
-                    else{
-                        CONSTRUCT(this->alloc,array+length,static_cast<value_type&&>(array[length-1]));
-                        move_reverse_n(array+index+1,array+index,(length++)-index-1);
-                        array[index]=value_type(static_cast<Args&&>(args)...);
-                    }
-                }
-                return array+index;
+                return emplace_at(pos-begin(),static_cast<Args&&>(args)...);
             }
             template<typename... Args>
             constexpr iterator emplace_at(size_type index,Args&&... args){
@@ -461,9 +470,10 @@ namespace mpv{
                         CONSTRUCT_VARARGS(this->alloc,array+length,static_cast<Args&&>(args));length++;
                     }
                     else{
+                        value_type val(static_cast<Args&&>(args)...);// necesario por si args es un alias de algun elemento del vector
                         CONSTRUCT(this->alloc,array+length,static_cast<value_type&&>(array[length-1]));
                         move_reverse_n(array+index+1,array+index,(length++)-index-1);
-                        array[index]=value_type(static_cast<Args&&>(args)...);
+                        array[index]=static_cast<value_type&&>(val);
                     }
                 }
                 return array+index;
@@ -473,7 +483,7 @@ namespace mpv{
             constexpr iterator insert_at(size_type index,const T& val){return emplace_at(index,val);}
             constexpr iterator insert_at(size_type index,value_type&& val){return emplace_at(index,static_cast<value_type&&>(val));}
             template<typename It>
-            constexpr enable_if_t<is_iterator_v<It>,iterator> insert_at(size_type index,It first,It last){
+            constexpr enable_if_t<is_iterator_v<It>,iterator> insert_at(size_type index,It first,It last){// first y last no deben ser iteradores del propio vector
                 if constexpr(is_forward_iterator_v<It>){
                     return insert_counted_range(const_iterator(array+index),first,distance(first,last));
                 }
@@ -482,7 +492,7 @@ namespace mpv{
                 }
             }
             template<typename It>
-            constexpr enable_if_t<is_iterator_v<It>,iterator> insert(const_iterator pos,It first,It last){
+            constexpr enable_if_t<is_iterator_v<It>,iterator> insert(const_iterator pos,It first,It last){// first y last no deben ser iteradores del propio vector
                 if constexpr(is_forward_iterator_v<It>){
                     return insert_counted_range(pos,first,distance(first,last));
                 }
@@ -502,18 +512,19 @@ namespace mpv{
                     this->destroy_and_free();
                     guard.transfer_to(*this);
                 }
-                else{
+                else if(count!=0){
                     size_type old_length=length;
+                    value_type v(val);
                     if(index+count>=length){
-                        fill_construct_n(alloc,array+old_length,count-(old_length-index),val);length=count+index;
+                        fill_construct_n(alloc,array+old_length,count-(old_length-index),v);length=count+index;
                         move_construct_n(alloc,array+count+index,array+index,old_length-index);length+=old_length-index;
-                        fill_n(array+index,old_length-index,val);
+                        fill_n(array+index,old_length-index,v);
                         
                     }
                     else{
                         move_construct_n(alloc,array+old_length,array+old_length-count,count);length+=count;
                         move_reverse_n(array+index+count,array+index,old_length-index-count);
-                        fill_n(array+index,count,val);
+                        fill_n(array+index,count,v);
                     }
                 }
                 return array+index;
@@ -527,9 +538,7 @@ namespace mpv{
                 --length;
             }
             constexpr void del(const_iterator pos)noexcept(is_nothrow_move_assignable_v<value_type>){
-                mpv::move(array+(pos-begin()),pos+1,const_iterator(array+length));
-                DESTROY(alloc,array+length-1);
-                --length;
+                del_at(pos-begin());
             }
             constexpr value_type pop_at(size_type index)noexcept(is_nothrow_move_constructible_v<value_type> && is_nothrow_move_assignable_v<value_type>){
                 value_type aux=static_cast<value_type&&>(array[index]);
@@ -539,12 +548,7 @@ namespace mpv{
                 return aux;
             }
             constexpr value_type pop(const_iterator pos)noexcept(is_nothrow_move_constructible_v<value_type> && is_nothrow_move_assignable_v<value_type>){
-                iterator it=array+(pos-begin());
-                value_type aux=static_cast<value_type&&>(*it);
-                mpv::move(it,pos+1,const_iterator(array+length));
-                DESTROY(alloc,array+length-1);
-                --length;
-                return aux;
+                return pop_at(pos-begin());
             }
             constexpr void del_back()noexcept{
                 DESTROY(this->alloc,array+length-1);
@@ -575,7 +579,7 @@ namespace mpv{
                 size_type index=pos-begin();
                 Vector new_vec(static_cast<Vector&&>(other));
                 if(this->length+new_vec.length>new_vec.maxLen){
-                    Guard guard(new_vec.alloc,(this->length+other.length)*realloc_factor);
+                    Guard guard(new_vec.alloc,(this->length+new_vec.length)*realloc_factor);
                     copy_construct_n(guard.al,guard.array,this->array,index);guard.length=index;
                     move_construct_n(guard.al,guard.array+index,new_vec.array,new_vec.length);guard.length+=new_vec.length;
                     copy_construct_n(guard.al,guard.array+index+new_vec.length,this->array+index,this->length-index);guard.length+=this->length-index;
@@ -607,7 +611,7 @@ namespace mpv{
             }
             constexpr Vector cut(const_iterator first,const_iterator last){
                 Vector new_vec(AlTy_traits::select_on_container_copy_construction(alloc));
-                new_vec.allocate_and_move_counted_range(first,last-first);
+                new_vec.allocate_and_move_counted_range(array+(first-begin()),last-first);
                 move_n(this->array+(first-begin()),this->array+(last-begin()),end()-last);
                 destroy_n(alloc,this->array+this->length-new_vec.length,new_vec.length);
                 this->length-=new_vec.length;
@@ -620,7 +624,7 @@ namespace mpv{
                 this->length-=deleted_size;
                 return *this;
             }
-            constexpr bool remove(const T& val){
+            constexpr bool remove(const T& val)noexcept(mpv::is_nothrow_move_assignable_v<T> && noexcept(fake_copy_init<bool>(this->array[this->length]==val))){
                 for(size_type i=0;i<length;i++){
                     if(array[i]==val){
                         move_n(array+i,array+i+1,(length-1)-i);
@@ -631,15 +635,21 @@ namespace mpv{
                 }
                 return false;
             }
-            constexpr size_type remove_all(const T& val){
-                size_type i=0,j=0;
+        private:
+            constexpr size_type next_val(size_type j,const T& val)const{
+                while(j<length && array[j]!=val) ++j;
+                return j;
+            }
+        public:
+            constexpr size_type remove_all(const T& val)noexcept(mpv::is_nothrow_move_assignable_v<T> && noexcept(fake_copy_init<bool>(this->array[this->length]!=val))){
+                size_type next=next_val(0,val);
+                size_type i=next,j=next;
                 while(j<length){
-                    if(array[j]!=val){
-                        if(i!=j)
-                            array[i]=static_cast<value_type&&>(array[j]);
-                        i++;
+                    next=next_val(++j,array[next]);
+                    while(j<next){
+                        array[i++]=static_cast<value_type&&>(array[j++]);
                     }
-                    j++;
+                    
                 }
                 destroy_n(alloc,array+i,length-i);
                 length=i;
@@ -666,47 +676,47 @@ namespace mpv{
                     length=new_len;
                 }
             }
-            constexpr const_iterator find(const T& val)const{
+            constexpr const_iterator find(const T& val)const noexcept(noexcept(mpv::find(this->begin(),this->end(),val))){
                 return mpv::find(begin(),end(),val);
             }
-            constexpr iterator find(const T& val){
+            constexpr iterator find(const T& val)noexcept(noexcept(mpv::find(this->begin(),this->end(),val))){
                 return mpv::find(begin(),end(),val);
             }
             template<typename Cmp=less<T>>
-            constexpr const_iterator binary_search(const T& val,Cmp&& cmp=Cmp{})const{
+            constexpr const_iterator binary_search(const T& val,Cmp&& cmp=Cmp{})const noexcept(noexcept(mpv::binary_search(this->begin(),this->end(),val,static_cast<Cmp&&>(cmp)))){
                 return mpv::binary_search(begin(),end(),val,static_cast<Cmp&&>(cmp));
             }
             template<typename Cmp=less<T>>
-            constexpr iterator binary_search(const T& val,Cmp&& cmp=Cmp{}){
+            constexpr iterator binary_search(const T& val,Cmp&& cmp=Cmp{})noexcept(noexcept(mpv::binary_search(this->begin(),this->end(),val,static_cast<Cmp&&>(cmp)))){
                 return mpv::binary_search(begin(),end(),val,static_cast<Cmp&&>(cmp));
             }
-            constexpr size_type count(const T& val)const{
+            constexpr size_type count(const T& val)const noexcept(noexcept(mpv::count<const_iterator,T,size_type>(this->begin(),this->end(),val))){
                 return mpv::count<const_iterator,T,size_type>(begin(),end(),val);
             }
-			constexpr bool contains(const T& val)const{
+			constexpr bool contains(const T& val)const noexcept(noexcept(mpv::contains<const_iterator,T>(this->begin(),this->end(),val))){
 				return mpv::contains<const_iterator,T>(begin(),end(),val);
 			}
-            constexpr size_type index_of(const T& val)const{
+            constexpr size_type index_of(const T& val)const noexcept(noexcept(mpv::index_of<const_iterator,T,size_type>(this->begin(),this->end(),val))){
                 return mpv::index_of<const_iterator,T,size_type>(begin(),end(),val);
             }
-            constexpr bool operator==(const Vector& other)const{
+            constexpr bool operator==(const Vector& other)const noexcept(noexcept(equal(this->begin(),this->end(),other.begin()))){
                 if(this->length!=other.length) return false;
                 else return equal(this->begin(),this->end(),other.begin());
             }
-            constexpr bool operator!=(const Vector& other)const{
+            constexpr bool operator!=(const Vector& other)const noexcept(noexcept(equal(this->begin(),this->end(),other.begin()))){
                 if(this->length!=other.length) return true;
                 else return !equal(this->begin(),this->end(),other.begin());
             }
-            constexpr bool operator<(const Vector& other)const{
+            constexpr bool operator<(const Vector& other)const noexcept(noexcept(fake_copy_init<bool>(*this->begin()<*this->begin()))){
                 return lexicographical_compare(this->begin(),this->end(),other.begin(),other.end());
             }
-            constexpr bool operator>(const Vector& other)const{
+            constexpr bool operator>(const Vector& other)const noexcept(noexcept(fake_copy_init<bool>(*this->begin()<*this->begin()))){
                 return lexicographical_compare(other.begin(),other.end(),this->begin(),this->end());
             }
-            constexpr bool operator<=(const Vector& other)const{
+            constexpr bool operator<=(const Vector& other)const noexcept(noexcept(fake_copy_init<bool>(*this->begin()<*this->begin()))){
                 return !lexicographical_compare(other.begin(),other.end(),this->begin(),this->end());
             }
-            constexpr bool operator>=(const Vector& other)const{
+            constexpr bool operator>=(const Vector& other)const noexcept(noexcept(fake_copy_init<bool>(*this->begin()<*this->begin()))){
                 return !lexicographical_compare(this->begin(),this->end(),other.begin(),other.end());
             }
             constexpr const_reference operator[](size_type index)const noexcept{
@@ -741,30 +751,29 @@ namespace mpv{
 				mpv::insertion_sort(begin(),end(),pred);
 			}
 			template<typename Lambda>
-			constexpr bool any(Lambda&& func=Lambda{})const{
+			constexpr bool any(Lambda&& func=Lambda{})const noexcept(noexcept(fake_copy_init<bool>(func(*this->begin())))){
                 for(const_reference x:*this)
                     if(func(x))return true;
                 return false;
 			}
 			template<typename Lambda>
-			constexpr void foreach(Lambda&& func=Lambda{})const{
+			constexpr void foreach(Lambda&& func=Lambda{})const noexcept(noexcept(func(*this->begin()))){
 				for(const_reference x:*this)
 					func(x);
 			}
 			template<typename Lambda>
-			constexpr void foreach(Lambda&& func=Lambda{}){
+			constexpr void foreach(Lambda&& func=Lambda{})noexcept(noexcept(func(*this->begin()))){
 				for(reference x:*this)
 					func(x);
 			}
             template<typename,typename,typename> friend class Vector;
 			template<typename Lambda>
 			constexpr auto map(Lambda&& func=Lambda{})const{
-                Vector<decltype(func(declval<const_reference>())),rebind_alloc<Alloc,decltype(func(declval<const_reference>()))>,realloc_params> new_vec(reserve_tag{},this->maxLen,AlTy_traits::select_on_container_copy_construction(alloc));
-                //Vector<decltype(func(*this->array)),rebind_alloc<Alloc,decltype(func(*this->array))>,realloc_params> new_vec(reserve_tag{},this->maxLen);
+                using U=mpv::remove_cvref_t<decltype(func(declval<const_reference>()))>;
+                Vector<U,rebind_alloc<Alloc,U>,realloc_params> new_vec(reserve_tag{},this->maxLen,AlTy_traits::select_on_container_copy_construction(alloc));
                 for(size_type i=0;i<this->length;i++){
-                    CONSTRUCT(new_vec.alloc,new_vec.array+i,func(this->array[i]));
+                    CONSTRUCT(new_vec.alloc,new_vec.array+i,func((*this)[i]));
                     ++new_vec.length;
-                    //decltype(new_vec)::AlTy_traits::construct(new_vec.alloc,new_vec.array+i,func(this->array[i]));
                 }
                     
 				return new_vec;
@@ -773,14 +782,13 @@ namespace mpv{
 			constexpr Vector filter(Lambda&& func=Lambda{})const{
 				Vector new_vec(reserve_tag{},this->length,AlTy_traits::select_on_container_copy_construction(alloc));
 				for(size_type i=0;i<this->length;i++)
-					if(func(this->array[i])){
+					if(func((*this)[i])){
                         CONSTRUCT(new_vec.alloc,new_vec.array+new_vec.length,this->array[i]);
                         ++new_vec.length;
-                        //AlTy_traits::construct(new_vec.alloc,new_vec.array+new_vec.length++,this->array[i]);
                     }
 				return new_vec;
 			}
-            constexpr Vector& reverse(){
+            constexpr Vector& reverse()noexcept(noexcept(mpv::reverse(this->begin(),this->end()))){
                 mpv::reverse(begin(),end());
                 return *this;
             }

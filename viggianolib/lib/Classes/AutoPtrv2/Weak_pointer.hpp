@@ -104,7 +104,7 @@ namespace mpv{
             constexpr bool expired()noexcept{
                 return ctrl_block==nullptr ? true : !ctrl_block->sharedCount;
             }
-            ~wPtr()noexcept{
+            ~wPtr(){
                 release();
             }
     };

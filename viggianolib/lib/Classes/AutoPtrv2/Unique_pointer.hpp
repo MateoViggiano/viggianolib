@@ -2,18 +2,18 @@
 #include"../../classes.hpp"
 namespace mpv{
 	template<typename T>
-	struct default_delete{
+	struct default_delete{static_assert(sizeof(T)>0,"can't delete an incomplete type");
 		constexpr default_delete()noexcept=default;
 		template<typename U>constexpr default_delete(const default_delete<U>&)noexcept{}
 		template<typename U>constexpr void operator()(U* p)noexcept{delete p;}
 	};
-	template<typename T>struct default_delete<T[]>{
+	template<typename T>struct default_delete<T[]>{static_assert(sizeof(T)>0,"can't delete an incomplete type");
 		constexpr default_delete()noexcept=default;
 		template<typename U>constexpr default_delete(const default_delete<U[]>&)noexcept{}
 		template<typename U,size_t N>constexpr default_delete(const default_delete<U[N]>&)noexcept{}
 		template<typename U>constexpr void operator()(U* p)noexcept{delete[] p;}
 	};
-	template<typename T,size_t N>struct default_delete<T[N]>{
+	template<typename T,size_t N>struct default_delete<T[N]>{static_assert(sizeof(T)>0,"can't delete an incomplete type");
 		constexpr default_delete()noexcept=default;
 		template<typename U>constexpr default_delete(const default_delete<U[N]>&)noexcept{}
 		template<typename U>constexpr void operator()(U* p)noexcept{delete[] p;}
@@ -22,7 +22,7 @@ namespace mpv{
 	struct alloc_wrapper_delete:EBCO<Alloc>{
 		using pointer=typename allocator_traits<Alloc>::pointer;
 		typename allocator_traits<Alloc>::size_type size;
-		constexpr alloc_wrapper_delete(size_t size)noexcept:size(size){}
+		constexpr alloc_wrapper_delete(size_t size)noexcept(is_nothrow_default_constructible_v<EBCO<Alloc>>):size(size){}
 		constexpr alloc_wrapper_delete(const Alloc& al,size_t size):EBCO<Alloc>(al),size(size){}
 		template<typename pU>constexpr void operator()(pU p)noexcept{
 			for(typename allocator_traits<Alloc>::size_type i=0;i<size;i++)
@@ -39,32 +39,41 @@ namespace mpv{
 			using pointer=typename p_ty<T,Del>::pointer;
 			using element_type=remove_extent_t<T>;
 			using deleter_type=Del;
-			static_assert(!(is_array_v<T> && sizeof(element_type)!=sizeof(typename pointer_traits<pointer>::element_type)));
+			static_assert([]{
+				if constexpr(!is_array_v<T>) return true;
+				else return sizeof(element_type)==sizeof(typename pointer_traits<pointer>::element_type);
+			},"If T is an array the size of element_type and the deleter's pointer's element_type must be equal");
 			uPtr(const uPtr&)=delete;
 			uPtr& operator=(const uPtr&)=delete;
-			constexpr uPtr()noexcept:PtrBase<T,pointer>(nullptr),EBCO<Del>(Del()){}
+			constexpr uPtr()noexcept(noexcept(PtrBase<T,pointer>(nullptr)) && is_nothrow_default_constructible_v<Del>):PtrBase<T,pointer>(nullptr){}
 
-			constexpr uPtr(decltype(nullptr))noexcept:PtrBase<T,pointer>(nullptr),EBCO<Del>(Del()){}
+			constexpr uPtr(decltype(nullptr))noexcept(noexcept(PtrBase<T,pointer>(nullptr)) && is_nothrow_default_constructible_v<Del>):PtrBase<T,pointer>(nullptr){}
+			//assigning or constructing an uPtr to anothersmartpointer.get() is ub
+			constexpr explicit uPtr(pointer dat)noexcept(noexcept(PtrBase<T,pointer>(dat)) && is_nothrow_default_constructible_v<Del>):PtrBase<T,pointer>(dat){static_assert(!is_pointer<Del>::value,"Shouldn't create an owning uPtr without having deleter");}
 
-			constexpr explicit uPtr(pointer dat)noexcept:PtrBase<T,pointer>(dat),EBCO<Del>(Del()){static_assert(!is_pointer<Del>::value,"Shouldn't default construct pointer to deleter");}
-
-			constexpr uPtr(pointer dat,const Del& new_del)noexcept:PtrBase<T,pointer>(dat),EBCO<Del>(new_del){}
+			constexpr uPtr(pointer dat,const Del& new_del)noexcept(noexcept(PtrBase<T,pointer>(dat)) && noexcept(EBCO<Del>(new_del))):PtrBase<T,pointer>(dat),EBCO<Del>(new_del){}
 
 			template<typename Del2=Del>//Esto es porque si no uso un template el compilador va a evaluar la funcion y va a generar un error.
-			constexpr uPtr(pointer dat,enable_if_t<!is_lvalue_ref_v<Del2>,Del&&> new_del)noexcept:PtrBase<T,pointer>(dat),EBCO<Del>(static_cast<Del&&>(new_del)){}
+			constexpr uPtr(pointer dat,enable_if_t<!is_lvalue_ref_v<Del2>,Del&&> new_del)noexcept(noexcept(PtrBase<T,pointer>(dat)) && noexcept(EBCO<Del>(static_cast<Del&&>(new_del)))):PtrBase<T,pointer>(dat),EBCO<Del>(static_cast<Del&&>(new_del)){}
 							//	  ^^^^^  Uso el enable_if porq en caso de que Del sea una referencia, por el colapso de referencias esta funcion quedaria igual a la de arriba y habria un error de funcion ambigua.
 
-			constexpr uPtr(uPtr&& other)noexcept:PtrBase<T,pointer>(other.data),EBCO<Del>(static_cast<Del&&>(other.get_val())){
+			constexpr uPtr(uPtr&& other)noexcept(noexcept(PtrBase<T,pointer>(other.data)) && noexcept(EBCO<Del>(static_cast<Del&&>(other.get_val())))):PtrBase<T,pointer>(other.data),EBCO<Del>(static_cast<Del&&>(other.get_val())){
 				other.data=nullptr;
 			}
 			template<typename U,typename Del2,enable_if_t<is_convertible_v<typename uPtr<U,Del2>::pointer,pointer> && (have_same_extent_v<T,U> || (is_same_v<remove_extent_t<T>,remove_extent_t<U>> && is_no_size_array_v<T> && is_size_array_v<U>)),int> = 0>
-			constexpr uPtr(uPtr<U,Del2>&& other)noexcept:PtrBase<T,pointer>(other.data),EBCO<Del>(static_cast<Del2&&>(other.get_val())){
-				static_assert(!is_array_v<T> || sizeof(remove_extent_t<T>)==sizeof(remove_extent_t<U>),"sizeof(T) and sizeof(U) must be equal if they are array types");
+			constexpr uPtr(uPtr<U,Del2>&& other)noexcept(noexcept(PtrBase<T,pointer>(other.data)) && noexcept(EBCO<Del>(static_cast<Del2&&>(other.get_val())))):PtrBase<T,pointer>(other.data),EBCO<Del>(static_cast<Del2&&>(other.get_val())){
+				static_assert(!is_reference_v<Del> || is_reference_v<Del2>,"Deleter shouldn't be a reference to an rvalue");
+				static_assert([]{
+					if constexpr(!is_array_v<T>) return true;
+					else return sizeof(remove_extent_t<T>)==sizeof(remove_extent_t<U>);
+				}(),"sizeof(T) and sizeof(U) must be equal if they are array types");
 				other.data=nullptr;
 			}
 			constexpr uPtr& operator=(decltype(nullptr))noexcept{
-				if(this->data!=nullptr) this->get_val()(this->data);
-				this->data=nullptr;
+				if(this->data!=nullptr){
+					this->get_val()(this->data);
+					this->data=nullptr;
+				}
 				return *this;
 			}
 			constexpr uPtr& operator=(pointer dat)noexcept{
@@ -72,17 +81,28 @@ namespace mpv{
 				this->data=dat;
 				return *this;
 			}
-			constexpr uPtr& operator=(uPtr<T,Del>&& other)noexcept{
-				if(this->data!=nullptr) this->get_val()(this->data);
+			constexpr uPtr& operator=(uPtr&& other)noexcept(noexcept(this->get_val()=static_cast<Del&&>(other.get_val()))){
+				if(this==&other) return *this;
+				if(this->data!=nullptr){
+					this->get_val()(this->data);
+					this->data=nullptr;
+				}
 				this->get_val()=static_cast<Del&&>(other.get_val());
 				this->data=other.data;
 				other.data=nullptr;
 				return *this;
 			}
-			template<typename U,typename Del2,enable_if_t<have_same_extent_v<T,U> || (is_same_v<remove_extent_t<T>,remove_extent_t<U>> && is_no_size_array_v<T> && is_size_array_v<U>),int> = 0>
-			constexpr uPtr& operator=(uPtr<U,Del2>&& other)noexcept{
-				static_assert(!is_array_v<T> || sizeof(remove_extent_t<T>)==sizeof(remove_extent_t<U>),"sizeof(T) and sizeof(U) must be equal if they are array types");
-				if(this->data!=nullptr) this->get_val()(this->data);
+			template<typename U,typename Del2,enable_if_t<is_convertible_v<typename uPtr<U,Del2>::pointer,pointer> && (have_same_extent_v<T,U> || (is_same_v<remove_extent_t<T>,remove_extent_t<U>> && is_no_size_array_v<T> && is_size_array_v<U>)),int> = 0>
+			constexpr uPtr& operator=(uPtr<U,Del2>&& other)noexcept(noexcept(this->get_val()=static_cast<Del2&&>(other.get_val()))){
+				static_assert(!is_reference_v<Del> || is_reference_v<Del2>,"Deleter shouldn't be a reference to an rvalue");
+				static_assert([]{
+					if constexpr(!is_array_v<T>) return true;
+					else return sizeof(remove_extent_t<T>)==sizeof(remove_extent_t<U>);
+				}(),"sizeof(T) and sizeof(U) must be equal if they are array types");
+				if(this->data!=nullptr){
+					this->get_val()(this->data);
+					this->data=nullptr;
+				} 
 				this->get_val()=static_cast<Del2&&>(other.get_val());
 				this->data=other.data;
 				other.data=nullptr;
@@ -96,42 +116,45 @@ namespace mpv{
 			constexpr Del& get_deleter()noexcept{
 				return this->get_val();
 			}
-			~uPtr()noexcept{
+			~uPtr(){
 				if(this->data!=nullptr) this->get_val()(this->data);
 			}
 		template<typename,typename>friend class uPtr;
-		template<typename t,typename del1,typename u,typename del2> friend constexpr enable_if_t<have_same_extent_v<t,u>,uPtr<t,del1>> static_ptr_cast(uPtr<u,del2>&&)noexcept;
-		template<typename t,typename del1,typename u,typename del2> friend constexpr enable_if_t<have_same_extent_v<t,u>,uPtr<t,del1>> reinterpret_ptr_cast(uPtr<u,del2>&&)noexcept;
-		template<typename t,typename del1,typename u,typename del2> friend constexpr enable_if_t<have_same_extent_v<t,u>,uPtr<t,del1>> const_ptr_cast(uPtr<u,del2>&&)noexcept;
-		template<typename t,typename del1,typename u,typename del2> friend constexpr enable_if_t<have_same_extent_v<t,u>,uPtr<t,del1>> dynamic_ptr_cast(uPtr<u,del2>&&);
+		template<typename V,typename Del1,typename U,typename Del2> friend constexpr enable_if_t<have_same_extent_v<V,U>,uPtr<V,Del1>> static_ptr_cast(uPtr<U,Del2>&& other)noexcept(noexcept(uPtr<V,Del1>(static_cast<typename uPtr<V,Del1>::pointer>(other.data),static_cast<Del2&&>(other.get_val()))) && is_nothrow_move_constructible_v<uPtr<V,Del1>>);
+		template<typename V,typename Del1,typename U,typename Del2> friend constexpr enable_if_t<have_same_extent_v<V,U>,uPtr<V,Del1>> reinterpret_ptr_cast(uPtr<U,Del2>&& other)noexcept(noexcept(uPtr<V,Del1>(reinterpret_cast<typename uPtr<V,Del1>::pointer>(other.data),static_cast<Del2&&>(other.get_val()))) && is_nothrow_move_constructible_v<uPtr<V,Del1>>);
+		template<typename V,typename Del1,typename U,typename Del2> friend constexpr enable_if_t<have_same_extent_v<V,U>,uPtr<V,Del1>> const_ptr_cast(uPtr<U,Del2>&& other)noexcept(noexcept(uPtr<V,Del1>(const_cast<typename uPtr<V,Del1>::pointer>(other.data),static_cast<Del2&&>(other.get_val()))) && is_nothrow_move_constructible_v<uPtr<V,Del1>>);
+		template<typename V,typename Del1,typename U,typename Del2> friend constexpr enable_if_t<have_same_extent_v<V,U>,uPtr<V,Del1>> dynamic_ptr_cast(uPtr<U,Del2>&& other);
 	};
-	template<typename T,typename Del1=default_delete<T>,typename U,typename Del2=default_delete<U>>
-	constexpr enable_if_t<have_same_extent_v<T,U>,uPtr<T,Del1>> static_ptr_cast(uPtr<U,Del2>&& other)noexcept{
-		static_assert(!is_array_v<T> || sizeof(remove_extent_t<T>)==sizeof(remove_extent_t<U>),"sizeof(T) and sizeof(U) must be equal if they are array types");
-		typename uPtr<T,Del1>::pointer p=static_cast<typename uPtr<T,Del1>::pointer>(other.data);
+	template<typename V,typename Del1=default_delete<V>,typename U,typename Del2=default_delete<U>>
+	constexpr enable_if_t<have_same_extent_v<V,U>,uPtr<V,Del1>> static_ptr_cast(uPtr<U,Del2>&& other)noexcept(noexcept(uPtr<V,Del1>(static_cast<typename uPtr<V,Del1>::pointer>(other.data),static_cast<Del2&&>(other.get_val()))) && is_nothrow_move_constructible_v<uPtr<V,Del1>>){
+		static_assert(!is_array_v<V> || sizeof(remove_extent_t<V>)==sizeof(remove_extent_t<U>),"sizeof(V) and sizeof(U) must be equal if they are array types");
+		uPtr<V,Del1> ret(static_cast<typename uPtr<V,Del1>::pointer>(other.data),static_cast<Del2&&>(other.get_val()));
 		other.data=nullptr;
-		return uPtr<T,Del1>(p,static_cast<Del2&&>(other.get_val()));
+		return ret;
 	}
-	template<typename T,typename Del1=default_delete<T>,typename U,typename Del2=default_delete<U>>
-	constexpr enable_if_t<have_same_extent_v<T,U>,uPtr<T,Del1>> reinterpret_ptr_cast(uPtr<U,Del2>&& other)noexcept{
-		static_assert(!is_array_v<T> || sizeof(remove_extent_t<T>)==sizeof(remove_extent_t<U>),"sizeof(T) and sizeof(U) must be equal if they are array types");
-		typename uPtr<T,Del1>::pointer p=reinterpret_cast<typename uPtr<T,Del1>::pointer>(other.data);
+	template<typename V,typename Del1=default_delete<V>,typename U,typename Del2=default_delete<U>>
+	constexpr enable_if_t<have_same_extent_v<V,U>,uPtr<V,Del1>> reinterpret_ptr_cast(uPtr<U,Del2>&& other)noexcept(noexcept(uPtr<V,Del1>(reinterpret_cast<typename uPtr<V,Del1>::pointer>(other.data),static_cast<Del2&&>(other.get_val()))) && is_nothrow_move_constructible_v<uPtr<V,Del1>>){
+		static_assert(!is_array_v<V> || sizeof(remove_extent_t<V>)==sizeof(remove_extent_t<U>),"sizeof(V) and sizeof(U) must be equal if they are array types");
+		uPtr<V,Del1> ret(reinterpret_cast<typename uPtr<V,Del1>::pointer>(other.data),static_cast<Del2&&>(other.get_val()));
 		other.data=nullptr;
-		return uPtr<T,Del1>(p,static_cast<Del2&&>(other.get_val()));
+		return ret;
 	}
-	template<typename T,typename Del1=default_delete<T>,typename U,typename Del2=default_delete<U>>
-	constexpr enable_if_t<have_same_extent_v<T,U>,uPtr<T,Del1>> const_ptr_cast(uPtr<U,Del2>&& other)noexcept{
-		static_assert(!is_array_v<T> || sizeof(remove_extent_t<T>)==sizeof(remove_extent_t<U>),"sizeof(T) and sizeof(U) must be equal if they are array types");
-		typename uPtr<T,Del1>::pointer p=const_cast<typename uPtr<T,Del1>::pointer>(other.data);
+	template<typename V,typename Del1=default_delete<V>,typename U,typename Del2=default_delete<U>>
+	constexpr enable_if_t<have_same_extent_v<V,U>,uPtr<V,Del1>> const_ptr_cast(uPtr<U,Del2>&& other)noexcept(noexcept(uPtr<V,Del1>(const_cast<typename uPtr<V,Del1>::pointer>(other.data),static_cast<Del2&&>(other.get_val()))) && is_nothrow_move_constructible_v<uPtr<V,Del1>>){
+		static_assert(!is_array_v<V> || sizeof(remove_extent_t<V>)==sizeof(remove_extent_t<U>),"sizeof(V) and sizeof(U) must be equal if they are array types");
+		uPtr<V,Del1> ret(const_cast<typename uPtr<V,Del1>::pointer>(other.data),static_cast<Del2&&>(other.get_val()));
 		other.data=nullptr;
-		return uPtr<T,Del1>(p,static_cast<Del2&&>(other.get_val()));
+		return ret;
 	}
-	template<typename T,typename Del1=default_delete<T>,typename U,typename Del2=default_delete<U>>
-	constexpr enable_if_t<have_same_extent_v<T,U>,uPtr<T,Del1>> dynamic_ptr_cast(uPtr<U,Del2>&& other){
-		static_assert(!is_array_v<T> || sizeof(remove_extent_t<T>)==sizeof(remove_extent_t<U>),"sizeof(T) and sizeof(U) must be equal if they are array types");
-		typename uPtr<T,Del1>::pointer p=dynamic_cast<typename uPtr<T,Del1>::pointer>(other.data);
-		if(p==nullptr) other.get_val()(other.data);
-		other.data=nullptr;
-		return uPtr<T,Del1>(p,static_cast<Del2&&>(other.get_val()));
+	template<typename V,typename Del1=default_delete<V>,typename U,typename Del2=default_delete<U>>
+	constexpr enable_if_t<have_same_extent_v<V,U>,uPtr<V,Del1>> dynamic_ptr_cast(uPtr<U,Del2>&& other){
+		static_assert(!is_array_v<V> || sizeof(remove_extent_t<V>)==sizeof(remove_extent_t<U>),"sizeof(V) and sizeof(U) must be equal if they are array types");
+		typename uPtr<V,Del1>::pointer p=dynamic_cast<typename uPtr<V,Del1>::pointer>(other.data);
+		if(p!=nullptr){
+			uPtr<V,Del1> ret(p,static_cast<Del2&&>(other.get_val()));
+			other.data=nullptr;
+			return ret;
+		} 
+		else return {};//uPtr<V,Del1> must be default constructible
 	}
 }

@@ -1,5 +1,9 @@
 #pragma once
 namespace mpv{
+    template<typename T>
+    constexpr T* addressof(T& value)noexcept{
+        return __builtin_addressof(value);
+    }
     class undefined;
     template<typename T>
     struct get_first_arg{
@@ -47,11 +51,12 @@ namespace mpv{
             using element_type=typename __element_type<Pointer>::type;
             using difference_type=typename __difference_type<Pointer>::type;
             template<typename U> using rebind=typename __rebind<Pointer,U>::type;
-            static pointer pointer_to(make_not_void<element_type>& x){
-                return Pointer::pointer_to(x);
+            static constexpr pointer pointer_to(make_not_void<element_type>& x)noexcept(noexcept(pointer::pointer_to(x))){
+                return pointer::pointer_to(x);
             }
             static_assert(!is_same_v<element_type,undefined>,"element_type cannot be undefined");
     };
+
     template<typename T>
     struct pointer_traits<T*>{
         using element_type=T;
@@ -59,10 +64,13 @@ namespace mpv{
         using difference_type=ptrdiff_t;
         template<typename U> using rebind=U*;
         static constexpr pointer pointer_to(make_not_void<element_type>& x)noexcept{
-            //return __builtin_addressof(x);
-            return &x;
+            return mpv::addressof(x);
         }
     };
+
+    template<typename T,typename=void> struct has_to_address_t:false_type{};
+    template<typename T> struct has_to_address_t<T,void_t<decltype(pointer_traits<T>::to_address(mpv::declval<const T&>()))>>:true_type{};
+    
     template<typename Pointer,typename T>
     using rebind_pointer=typename pointer_traits<Pointer>::template rebind<T>;
     
@@ -70,21 +78,17 @@ namespace mpv{
     template<typename T> struct is_fancy<T*>:false_type{};
     template<typename Pointer> constexpr bool is_fancy_v=is_fancy<Pointer>::value;
 
-    template<typename Fancy>
-    constexpr auto unfancy(Fancy ptr)noexcept{
-        return &(*ptr);
-    }
     template<typename T>
-    constexpr T* unfancy(T* ptr)noexcept{
+    constexpr T* to_address(T* const ptr)noexcept{
         return ptr;
-    }
+    }    
     template<typename Fancy>
-    constexpr auto unfancy_maybe_null(Fancy ptr)noexcept{
-        return ptr ? &(*ptr) : nullptr;
+    constexpr auto to_address(const Fancy& ptr)noexcept{
+        if constexpr(has_to_address_t<Fancy>::value) return mpv::pointer_traits<Fancy>::to_address(ptr);
+        else return mpv::to_address(ptr.operator->());
     }
-    template<typename T>
-    constexpr T* unfancy_maybe_null(T* ptr)noexcept{
-        return ptr;
+    template<typename Ptr>
+    constexpr auto unfancy(const Ptr& p)noexcept{
+        return mpv::to_address(p);
     }
-
 }

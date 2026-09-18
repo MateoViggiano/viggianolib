@@ -209,4 +209,24 @@ namespace mpv{
             return ~static_cast<T&&>(a);
         }
     };
+    template<typename T> struct less<T*>{
+        constexpr bool operator()(T* a,T* b)const noexcept{
+            return reinterpret_cast<uintptr_t>(a) < reinterpret_cast<uintptr_t>(b);
+        }
+    };
+    template<typename T> struct greater<T*>{
+        constexpr bool operator()(T* a,T* b)const noexcept{
+            return reinterpret_cast<uintptr_t>(a) > reinterpret_cast<uintptr_t>(b);
+        }
+    };
+    template<typename T> struct less_equal<T*>{
+        constexpr bool operator()(T* a,T* b)const noexcept{
+            return reinterpret_cast<uintptr_t>(a) <= reinterpret_cast<uintptr_t>(b);
+        }
+    };
+    template<typename T> struct greater_equal<T*>{
+        constexpr bool operator()(T* a,T* b)const noexcept{
+            return reinterpret_cast<uintptr_t>(a) >= reinterpret_cast<uintptr_t>(b);
+        }
+    };
 }

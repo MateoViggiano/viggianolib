@@ -1,37 +1,33 @@
 #pragma once
-
 namespace mpv{
 	template<typename,typename> class List;
 	template<typename,typename> struct List_Node;
+
 	template<typename T,typename VoidPtr>
 	struct Base_List_Node{
 		using BaseNodePtr=rebind_pointer<VoidPtr,Base_List_Node>;
 		using const_BaseNodePtr=rebind_pointer<VoidPtr,const Base_List_Node>;
 		using NodePtr=rebind_pointer<VoidPtr,List_Node<T,VoidPtr>>;
-		using const_NodePtr=rebind_pointer<VoidPtr,const List_Node<T,VoidPtr>>;
-		NodePtr next;
-		NodePtr prev;
-		constexpr void link_right(NodePtr other)noexcept{//links other to the right of this
+		BaseNodePtr next;
+		BaseNodePtr prev;
+		constexpr void link_right(BaseNodePtr other)noexcept{//links other to the right of this
 			this->next->prev=other;
 			other->next=this->next;
 			this->next=other;
-			other->prev=NodePtr(this);
+			other->prev=this->address();
 		}
-		constexpr void link_left(NodePtr other)noexcept{//links other to the left of this
+		constexpr void link_left(BaseNodePtr other)noexcept{//links other to the left of this
 			this->prev->next=other;
 			other->prev=this->prev;
 			this->prev=other;
-			other->next=NodePtr(this);
+			other->next=this->address();
 		}
 		constexpr void unlink()noexcept{
 			this->prev->next=this->next;
 			this->next->prev=this->prev;
 		}
-		constexpr NodePtr address()noexcept{
-			return NodePtr(reinterpret_cast<List_Node<T,VoidPtr>*>(this));
-		}
-		constexpr const_NodePtr address()const noexcept{
-			return const_NodePtr(reinterpret_cast<const List_Node<T,VoidPtr>*>(this));
+		constexpr BaseNodePtr address()const noexcept{
+			return pointer_traits<BaseNodePtr>::pointer_to(*const_cast<Base_List_Node*>(this));
 		}
 	};
 	template<typename T,typename VoidPtr>
@@ -42,25 +38,30 @@ namespace mpv{
 		List_Node(const List_Node&)=delete;
 		List_Node& operator=(const List_Node&)=delete;
 	};
+	template<typename> class const_List_iterator;
 	template<typename Types>
 	class List_iterator{
 		template<typename,typename> friend class List;
+		friend class const_List_iterator<Types>;
+		using const_iterator=const_List_iterator<Types>;
 		public:
 			using iterator_category=bidirectional_iterator_tag;
-			using NodePtr=typename Types::NodePtr;
+			using BaseNodePtr=typename Types::BaseNodePtr;
+			using Node=typename Types::Node;
 			using value_type=typename Types::value_type;
 			using difference_type=typename Types::difference_type;
 			using pointer=typename Types::pointer;
-			using reference=value_type&;
+			using reference=typename Types::reference;
 		private:
-			NodePtr ptr;
+			BaseNodePtr ptr{};
 		public:
-			constexpr List_iterator(NodePtr ptr)noexcept:ptr(ptr){}
+			constexpr List_iterator()=default;
+			constexpr List_iterator(BaseNodePtr ptr)noexcept:ptr(ptr){}
 			constexpr reference operator*()const noexcept{
-				return ptr->data;
+				return static_cast<Node&>(*ptr).data;
 			}
 			constexpr pointer operator->()const noexcept{
-				return pointer_traits<pointer>::pointer_to(ptr->data);
+				return pointer_traits<pointer>::pointer_to(static_cast<Node&>(*ptr).data);
 			}
 			constexpr List_iterator& operator++()noexcept{
 				ptr=ptr->next;
@@ -98,34 +99,36 @@ namespace mpv{
 				advance(*this,-n);
 				return *this;
 			}
-			constexpr bool operator==(const List_iterator& other)const noexcept{
+			constexpr bool operator==(const const_iterator& other)const noexcept{
 				return this->ptr==other.ptr;
 			}
-			constexpr bool operator!=(const List_iterator& other)const noexcept{
+			constexpr bool operator!=(const const_iterator& other)const noexcept{
 				return this->ptr!=other.ptr;
 			}
-			template<typename> friend class const_List_iterator;
 	};
 	template<typename Types>
 	class const_List_iterator{
 		template<typename,typename> friend class List;
+		friend class List_iterator<Types>;
 		public:
 			using iterator_category=bidirectional_iterator_tag;
-			using NodePtr=typename Types::const_NodePtr;
+			using BaseNodePtr=typename Types::BaseNodePtr;
+			using Node=typename Types::Node;
 			using value_type=typename Types::value_type;
 			using difference_type=typename Types::difference_type;
 			using pointer=typename Types::const_pointer;
 			using reference=typename Types::const_reference;
 		private:
-			NodePtr ptr;
+			BaseNodePtr ptr{};
 		public:
-			constexpr const_List_iterator(NodePtr ptr)noexcept:ptr(ptr){}
+			constexpr const_List_iterator()=default;
+			constexpr const_List_iterator(BaseNodePtr ptr)noexcept:ptr(ptr){}
 			constexpr const_List_iterator(List_iterator<Types> nonconst_it)noexcept:ptr(nonconst_it.ptr){}
 			constexpr reference operator*()const noexcept{
-				return ptr->data;
+				return static_cast<Node&>(*ptr).data;
 			}
 			constexpr pointer operator->()const noexcept{
-				return pointer_traits<pointer>::pointer_to(ptr->data);
+				return pointer_traits<pointer>::pointer_to(static_cast<Node&>(*ptr).data);
 			}
 			constexpr const_List_iterator& operator++()noexcept{
 				ptr=ptr->next;
@@ -173,10 +176,13 @@ namespace mpv{
 	template<typename T,typename Alloc=allocator<T>>
 	class List COUNT_IT{
 		private:
-			using BaseNode=Base_List_Node<T,typename allocator_traits<Alloc>::void_pointer>;
-			using Node=List_Node<T,typename allocator_traits<Alloc>::void_pointer>;
 			using AlTy=rebind_alloc<Alloc,T>;
-			using AlTy_traits=allocator_traits<AlTy>;
+			using AlTy_traits=allocator_traits<AlTy>;		
+			using BaseNode=Base_List_Node<T,typename allocator_traits<Alloc>::void_pointer>;
+			using AlBase=rebind_alloc<Alloc,BaseNode>;
+			using AlBase_traits=allocator_traits<AlBase>;
+			using BaseNodePtr=typename AlBase_traits::pointer;
+			using Node=List_Node<T,typename allocator_traits<Alloc>::void_pointer>;
 			using AlNode=rebind_alloc<Alloc,Node>;
 			using AlNode_traits=allocator_traits<AlNode>;			
 			using NodePtr=typename AlNode_traits::pointer;
@@ -190,8 +196,8 @@ namespace mpv{
 				using const_pointer=typename AlTy_traits::const_pointer;
 				using reference=T&;
 				using const_reference=const T&;
-				using NodePtr=typename AlNode_traits::pointer;
-				using const_NodePtr=typename AlNode_traits::const_pointer;
+				using Node=List_Node<T,typename allocator_traits<Alloc>::void_pointer>;
+				using BaseNodePtr=typename AlBase_traits::pointer;
 			};
 		public:
             static constexpr bool POCCA=AlTy_traits::propagate_on_container_copy_assignment::value;
@@ -216,25 +222,31 @@ namespace mpv{
 #define alloc cp.getV1()
 			CompressedPair<AlNode,BaseNode> cp;
 			size_type length=0;
+
+			constexpr static NodePtr to_node(BaseNodePtr bp)noexcept{
+				return pointer_traits<NodePtr>::pointer_to(static_cast<Node&>(*bp));
+			}
+			constexpr static BaseNodePtr to_base(NodePtr p)noexcept{
+				return pointer_traits<BaseNodePtr>::pointer_to(static_cast<BaseNode&>(*p));
+			}
 			template<typename... Args>
-			constexpr NodePtr create_node(Args&&... args){
+			constexpr BaseNodePtr create_node(Args&&... args){
                 AllocConstructPtr guard(alloc);
                 guard.allocate();
 				CONSTRUCT_VARARGS(this->alloc,guard.ptr,static_cast<Args&&>(args));
 				guard.ptr->next=guard.ptr->prev=NULLPTR;
-				return guard.release();
+				return to_base(guard.release());
 			}
 			constexpr void delete_node(NodePtr node)noexcept{
 				/* AlNode_traits::destroy */DESTROY(this->alloc,node);
 				AlNode_traits::deallocate(this->alloc,node,1);
 			}
 			constexpr void destroy_and_free()noexcept{
-				NodePtr aux;
 				TAIL=NULLPTR;
 				while(HEAD!=NULLPTR){
-					aux=HEAD;
+					NodePtr aux=to_node(HEAD);
 					HEAD=HEAD->next;
-					/* AlNode_traits::destroy */DESTROY(this->alloc,aux);
+					DESTROY(this->alloc,aux);
 					AlNode_traits::deallocate(this->alloc,aux,1);
 				}//TAIL and HEAD en up pointing to NULLPTR
 			}
@@ -245,36 +257,21 @@ namespace mpv{
 			constexpr void set_null_sides()noexcept{
 				this->HEAD->prev=this->TAIL->next=this->NULLPTR;
 			}
-			constexpr NodePtr get_pos(size_type index){
-				NodePtr p=HEAD;
-				for(size_type i=0;i<index;i++) p=p->next;
-				return p;
-			}
-			constexpr void link_back(NodePtr node)noexcept{
+			constexpr void link_back(BaseNodePtr node)noexcept{
 				TAIL->next=node;// node is allready pointing to null when created
 				TAIL->next->prev=TAIL;
 				TAIL=TAIL->next;
 			}
-			constexpr void link_front(NodePtr node)noexcept{
-				HEAD->prev=node;
-				HEAD->prev->next=HEAD;
-				HEAD=HEAD->prev;
-			}
-			constexpr void link_at(size_type index,NodePtr node)noexcept{
-				NodePtr p=HEAD;
-				for(size_type i=0;i<index;i++) p=p->next;
-				p->link_left(node);
-			}
 			constexpr NodePtr unlink_back()noexcept{
-				NodePtr p=TAIL;
+				NodePtr p(to_node(TAIL));
 				p->unlink();
 				return p;
 			}
 			constexpr NodePtr unlink_at(size_type index)noexcept{
-				NodePtr p=HEAD;
+				BaseNodePtr p(HEAD);
 				for(size_type i=0;i<index;i++) p=p->next;
 				p->unlink();
-				return p;
+				return to_node(p);
 			}
 /*	Cada una de las funciones que siguen asume que recibe una lista valida en la que length coincide con 
 	la actual cantidad de nodos  en la lista, sus nodos correctamente enlazados y apuntando a null 
@@ -307,26 +304,25 @@ namespace mpv{
 			}
 			constexpr void copy_elements_keeping_this_allocation(const List& other){
 				if(this->length>=other.length){
-					NodePtr i=this->HEAD, j=other.HEAD;
+					BaseNodePtr i=this->HEAD, j=other.HEAD;
 					while(j!=other.NULLPTR){
-						this->TAIL=i;
-						i->data=j->data;
+						to_node(i)->data=to_node(j)->data;
 						i=i->next;
 						j=j->next;
 					}
 					this->TAIL=i->prev;
 					TAIL->next=this->NULLPTR;
 					while(i!=this->NULLPTR){
-						NodePtr aux=i;
+						NodePtr aux=to_node(i);
 						i=i->next;
 						this->delete_node(aux);
 					}
 					this->length=other.length;
 				}
 				else{
-					NodePtr i=this->HEAD, j=other.HEAD;
+					BaseNodePtr i=this->HEAD, j=other.HEAD;
 					while(i!=this->NULLPTR){
-						i->data=j->data;
+						to_node(i)->data=to_node(j)->data;
 						i=i->next;
 						j=j->next;
 					}
@@ -336,17 +332,16 @@ namespace mpv{
 			}
 			constexpr void copy_elements_keeping_this_allocation(List&& other){
 				if(this->length>=other.length){
-					NodePtr i=this->HEAD, j=other.HEAD;
+					BaseNodePtr i=this->HEAD, j=other.HEAD;
 					while(j!=other.NULLPTR){
-						this->TAIL=i;
-						i->data=static_cast<value_type&&>(j->data);
+						to_node(i)->data=static_cast<value_type&&>(to_node(j)->data);
 						i=i->next;
 						j=j->next;
 					}
 					this->TAIL=i->prev;
 					TAIL->next=this->NULLPTR;
 					while(i!=this->NULLPTR){
-						NodePtr aux=i;
+						NodePtr aux=to_node(i);
 						i=i->next;
 						this->delete_node(aux);
 					}
@@ -354,9 +349,9 @@ namespace mpv{
 					other.clear();
 				}
 				else{
-					NodePtr i=this->HEAD, j=other.HEAD;
+					BaseNodePtr i=this->HEAD, j=other.HEAD;
 					while(i!=this->NULLPTR){
-						i->data=static_cast<value_type&&>(j->data);
+						to_node(i)->data=static_cast<value_type&&>(to_node(j)->data);
 						i=i->next;
 						j=j->next;
 					}
@@ -396,7 +391,7 @@ namespace mpv{
 				this->HEAD->prev=this->NULLPTR;
 				other.reset();
 			}
-			constexpr void move_at(NodePtr p,List& other)noexcept{
+			constexpr void move_at(BaseNodePtr p,List& other)noexcept{
 				this->length+=other.length;
 				p->prev->next=other.HEAD;
 				other.HEAD->prev=p->prev;
@@ -407,15 +402,17 @@ namespace mpv{
 			struct Guard{
 				AlNode& al;
 				size_type length=0;
-				NodePtr head=nullptr,tail=nullptr;
-				template<typename U>
-				constexpr NodePtr create_node(U&& val){
+				BaseNodePtr head=nullptr,tail=nullptr;
+				template<typename... Args>
+				constexpr BaseNodePtr create_node(Args&&... args){
 					AllocConstructPtr guard(al);
 					guard.allocate();
-					CONSTRUCT(this->al,guard.ptr,static_cast<U&&>(val));
+					CONSTRUCT_VARARGS(this->al,guard.ptr,static_cast<Args&&>(args));
 					guard.ptr->next=guard.ptr->prev=nullptr;
-					return guard.release();
+					return to_base(guard.release());
 				}
+				Guard(const Guard&)=delete;
+				Guard& operator=(const Guard&)=delete;
 				constexpr Guard(AlNode& al)noexcept:al(al){}
 				template<typename It>
 				constexpr Guard(AlNode& al,It first,It last):al(al){
@@ -435,7 +432,24 @@ namespace mpv{
 						guard.head=nullptr;
 					}
 				}
-				constexpr Guard(AlNode& al,size_type sz,const value_type& fillwith=value_type{}):al(al){
+				constexpr Guard(AlNode& al,size_type sz):al(al){
+					Guard guard(al);
+					if(guard.length<sz){
+						guard.head=guard.tail=guard.create_node();
+						guard.length=1;
+						while(guard.length<sz){
+							guard.tail->next=guard.create_node();
+							guard.tail->next->prev=guard.tail;
+							guard.tail=guard.tail->next;
+							++guard.length;
+						}
+						this->tail=guard.tail;
+						this->head=guard.head;
+						this->length=guard.length;
+						guard.head=nullptr;
+					}
+				}
+				constexpr Guard(AlNode& al,size_type sz,const value_type& fillwith):al(al){
 					Guard guard(al);
 					if(guard.length<sz){
 						guard.head=guard.tail=guard.create_node(fillwith);
@@ -452,7 +466,7 @@ namespace mpv{
 						guard.head=nullptr;
 					}
 				}
-				constexpr size_type transfer_at(NodePtr p)noexcept{
+				constexpr size_type transfer_at(BaseNodePtr p)noexcept{
 					if(length!=0){
 						p->prev->next=head;
 						head->prev=p->prev;
@@ -462,17 +476,44 @@ namespace mpv{
 					}
 					return length;
 				}
+				template<bool double_link=false,bool calculate_length=false>
+				constexpr void push_back(BaseNodePtr p)noexcept{
+					if(head==nullptr)
+						head=tail=p;
+					else{
+						tail->next=p;
+						if constexpr(double_link) p->prev=tail;
+						tail=tail->next;
+					}
+					if constexpr(calculate_length) ++length;
+				}
 				~Guard()noexcept{
 					while(head!=nullptr){
-						NodePtr aux=head;
+						NodePtr aux=to_node(head);
 						head=head->next;
 						DESTROY(al,aux);
 						AlNode_traits::deallocate(al,aux,1);
 					}
 				}
 			};
+			struct ForwardGuard{
+				AlNode& al;
+				BaseNodePtr first;
+				size_type length;
+				ForwardGuard(const ForwardGuard&)=delete;
+				ForwardGuard& operator=(const ForwardGuard&)=delete;
+				ForwardGuard(AlNode& al,BaseNodePtr first,size_type length)noexcept:al(al),first(first),length(length){}
+				~ForwardGuard(){
+					while(length--){
+						NodePtr aux=to_node(first);
+						first=first->next;
+						DESTROY(al,aux);
+						AlNode_traits::deallocate(al,aux,1);
+					}
+				}
+			};
 		 public:
-			constexpr List()noexcept{
+			constexpr List()noexcept(is_nothrow_default_constructible_v<AlNode>){
 				HEAD=NULLPTR;
 				TAIL=NULLPTR;
 			}
@@ -552,13 +593,17 @@ namespace mpv{
 			}
 			constexpr List& operator=(const List& other){										//Operador de copia(optimizado)
 				if(this!=&other){
-					if constexpr(!ALWAYS_EQ && POCCA){
-						if(this->alloc!=other.alloc){
-							this->destroy_and_free();
-							this->alloc=other.alloc;
-							this->copy_elements(other);
-							return *this;
+					if constexpr(POCCA){
+						if constexpr(!ALWAYS_EQ){
+							if(this->alloc!=other.alloc){
+								this->destroy_and_free();
+								this->length=0;
+								this->alloc=other.alloc;
+								this->copy_elements(other);
+								return *this;
+							}							
 						}
+						this->alloc=other.alloc;
 					}
 					this->copy_elements_keeping_this_allocation(other);
 				}
@@ -573,7 +618,7 @@ namespace mpv{
 					}
 				}
 				this->destroy_and_free();
-				if constexpr(POCMA) this->alloc=static_cast<AlNode&&>(other.alloc);
+				pocma(this->alloc,other.alloc);
 				this->move_elements(other);
 				return *this;
 			}
@@ -631,9 +676,9 @@ namespace mpv{
 				else{
 					Guard guard(alloc,begin(),end());
 					for(size_type i=2;i<num;i++){
-						NodePtr p=HEAD;
+						BaseNodePtr p=HEAD;
 						for(size_type j=0;j<length;j++){
-							guard.tail->next=guard.create_node(p->data);
+							guard.tail->next=guard.create_node(to_node(p)->data);
 							guard.tail->next->prev=guard.tail;
 							guard.tail=guard.tail->next;
 							p=p->next;
@@ -659,39 +704,39 @@ namespace mpv{
 			}
 			template<typename... Args>
 			constexpr iterator emplace(const_iterator pos,Args&&... args){
-				NodePtr p=create_node(static_cast<Args&&>(args)...);
-				const_cast<NodePtr>(pos.ptr)->link_left(p);
+				BaseNodePtr p=create_node(static_cast<Args&&>(args)...);
+				pos.ptr->link_left(p);
 				++length;
 				return iterator(p);
 			}
 			constexpr iterator insert(const_iterator pos,const value_type& val){
-				NodePtr p=create_node(val);
-				const_cast<NodePtr>(pos.ptr)->link_left(p);
+				BaseNodePtr p=create_node(val);
+				pos.ptr->link_left(p);
 				++length;
 				return iterator(p);
 			}
 			constexpr iterator insert(const_iterator pos,value_type&& val){
-				NodePtr p=create_node(static_cast<value_type&&>(val));
-				const_cast<NodePtr>(pos.ptr)->link_left(p);
+				BaseNodePtr p=create_node(static_cast<value_type&&>(val));
+				pos.ptr->link_left(p);
 				++length;
 				return iterator(p);
 			}
             template<typename It>
             constexpr enable_if_t<is_iterator_v<It>,iterator> insert(const_iterator pos,It first,It last){
                 Guard guard(alloc,first,last);
-				if(guard.head==nullptr) return iterator(const_cast<NodePtr>(pos.ptr));
+				if(guard.head==nullptr) return iterator(pos.ptr);
 				else{
-					NodePtr p=guard.head;
-					this->length+=guard.transfer_at(const_cast<NodePtr>(pos.ptr));
+					BaseNodePtr p=guard.head;
+					this->length+=guard.transfer_at(pos.ptr);
 					return iterator(p);
 				}
             }
             constexpr iterator insert(const_iterator pos,const size_type count,const T& val){
                 Guard guard(alloc,count,val);
-				if(guard.head==nullptr) return iterator(const_cast<NodePtr>(pos.ptr));
+				if(guard.head==nullptr) return iterator(pos.ptr);
 				else{
-					NodePtr p=guard.head;
-					this->length+=guard.transfer_at(const_cast<NodePtr>(pos.ptr));
+					BaseNodePtr p=guard.head;
+					this->length+=guard.transfer_at(pos.ptr);
 					return iterator(p);
 				}
             }
@@ -713,35 +758,27 @@ namespace mpv{
                 return insert(begin()+index,count,val);
             }
 			constexpr value_type pop(const_iterator pos)noexcept(is_nothrow_move_constructible_v<value_type>){
-				--length;
-				NodePtr p=const_cast<NodePtr>(pos.ptr);
-				p->unlink();
+				NodePtr p(to_node(pos.ptr));
 				value_type aux=static_cast<value_type&&>(p->data);
+				p->unlink();
 				delete_node(p);
+				--length;
 				return aux;
 			}
 			constexpr void del(const_iterator pos)noexcept{
 				--length;
-				const_cast<NodePtr>(pos.ptr)->unlink();
-				delete_node(const_cast<NodePtr>(pos.ptr));
+				pos.ptr->unlink();
+				delete_node(to_node(pos.ptr));
 			}
 			constexpr value_type pop_at(size_type index)noexcept(is_nothrow_move_constructible_v<value_type>){
-				--length;
-				NodePtr p=unlink_at(index);
-				value_type aux=static_cast<value_type&&>(p->data);
-				delete_node(p);
-				return aux;
+				return pop(begin()+index);
 			}
 			constexpr void del_at(size_type index)noexcept{
 				--length;
 				delete_node(unlink_at(index));
 			}
 			constexpr value_type pop_back()noexcept(is_nothrow_move_constructible_v<value_type>){
-				--length;
-				NodePtr p=unlink_back();
-				value_type aux=static_cast<value_type&&>(p->data);
-				delete_node(p);
-				return aux;
+				return pop(const_iterator(TAIL));
 			}
 			void del_back()noexcept{
 				--length;
@@ -774,48 +811,45 @@ namespace mpv{
 				if constexpr(!ALWAYS_EQ){
 					if(this->alloc!=other.alloc){
 						Guard guard(this->alloc,move_iterator(other.begin()),move_iterator(other.end()));
-						length+=guard.transfer_at(const_cast<NodePtr>(pos.ptr));
+						length+=guard.transfer_at(pos.ptr);
 						return;
 					}
 				}
-				move_at(const_cast<NodePtr>(pos.ptr),other);
+				move_at(pos.ptr,other);
 			}
 			constexpr List sublist(const_iterator first,const_iterator last)const&{
 				return List(first,last,AlNode_traits::select_on_container_copy_construction(alloc));
 			}
-			constexpr List sublist(const_iterator first,const_iterator last)&& noexcept{
-				if(first==last) return {};
+			constexpr List sublist(const_iterator first,const_iterator last)&& noexcept(noexcept(AlNode_traits::select_on_container_copy_construction(this->alloc))){
+				if(first==last) return List(AlNode_traits::select_on_container_copy_construction(alloc));
 				wipe(last,end());
 				wipe(begin(),first);
 				return List(static_cast<List&&>(*this));
 			}
 			constexpr List& wipe(const_iterator first,const_iterator last)noexcept{
-				NodePtr fst=const_cast<NodePtr>(first.ptr),lst=const_cast<NodePtr>(last.ptr);
+				BaseNodePtr fst=first.ptr,lst=last.ptr;
 				fst->prev->next=lst;
 				lst->prev=fst->prev;
 				while(fst!=lst){
 					--length;
-					NodePtr aux=fst;
+					NodePtr aux=to_node(fst);
 					fst=fst->next;
 					delete_node(aux);
 				}
 				return *this;
 			}
-			constexpr List cut(const_iterator first,const_iterator last)& noexcept(ALWAYS_EQ){
+			constexpr List cut(const_iterator first,const_iterator last)& noexcept(ALWAYS_EQ && noexcept(AlNode_traits::select_on_container_copy_construction(this->alloc))){
 				List new_list(AlNode_traits::select_on_container_copy_construction(alloc));
 				if(first==last) return new_list;
-				NodePtr fst=const_cast<NodePtr>(first.ptr), lst=const_cast<NodePtr>(last.ptr);
+				BaseNodePtr fst=first.ptr, lst=last.ptr;
 				if constexpr(!ALWAYS_EQ){
 					if(this->alloc!=new_list.alloc){
 						fst->prev->next=lst;
 						lst->prev=fst->prev;
-						this->length-=distance(first,last);
+						size_type cut_size=distance(first,last);
+						this->length-=cut_size;
+						ForwardGuard guard(alloc,fst,cut_size);
 						new_list.insert(new_list.begin(),move_iterator(iterator(fst)),move_iterator(iterator(lst)));
-						while(fst!=lst){
-							NodePtr aux=fst;
-							fst=fst->next;
-							delete_node(aux);
-						}
 						return new_list;
 					}
 				}
@@ -832,33 +866,14 @@ namespace mpv{
 				return static_cast<List&&>(*this).sublist(first,last);
 			}
 			constexpr size_type size()const noexcept{
-				#if defined(DEBUG) && (defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_))
-				size_type node_count=0,node_count_reverse=0;
-				for(NodePtr current=this->HEAD;current!=this->NULLPTR;current=current->next){
-					node_count++;
-				}
-				for(NodePtr current=this->TAIL;current!=this->NULLPTR;current=current->prev){
-					node_count_reverse++;
-				}
-				if(node_count!=node_count_reverse){
-					std::cerr<<"\nNODE_COUNT AND NODE_COUNT_REVERSE DO NOT MATCH\a\n"
-							<<"NODE_COUNT: "<<node_count<<"\nNODE_COUNT_REVERSE: "<<node_count_reverse<<std::endl;
-					exit(-1);
-				}
-				if(node_count!=length){
-					std::cerr<<"\nSIZE AND NODE_COUNT DO NOT MATCH\a\n"
-							<<"LEN: "<<length<<"\nNODE_COUNT: "<<node_count<<std::endl;
-					exit(-1);
-				}
-				#endif
 				return length;
 			}
-			constexpr bool remove(const T& val){
-				NodePtr current=this->HEAD;
+			constexpr bool remove(const T& val)noexcept(noexcept(fake_copy_init<bool>(to_node(this->HEAD)->data==val))){
+				BaseNodePtr current=this->HEAD;
 				while(current!=NULLPTR){
-					if(current->data==val){
-						current->unlink();
-						delete_node(current);
+					if(NodePtr p=to_node(current); p->data==val){
+						p->unlink();
+						delete_node(p);
 						this->length--;
 						return true;
 					}
@@ -867,22 +882,22 @@ namespace mpv{
 				}
 				return false;
 			}
-			constexpr size_type remove_all(const T& val){	//devuelve la cantidad removida
-				NodePtr aux, current=this->HEAD;
-				size_type found=0;
+			constexpr size_type remove_all(const T& val)noexcept(noexcept(fake_copy_init<bool>(to_node(this->HEAD)->data==val))){	//devuelve la cantidad removida
+				Guard guard(alloc);
+				guard.length=this->length;//old length
+				BaseNodePtr current=this->HEAD;
 				while(current!=NULLPTR){
-					if(current->data==val){
-						aux=current;
+					if(to_node(current)->data==val){
+						guard.push_back(current);
+						current->unlink();
 						current=current->next;
-						aux->unlink();
-						delete_node(aux);
+						guard.tail->next=nullptr;
 						this->length--;
-						found++;
 					}
 					else
 						current=current->next;
 				}
-				return found;
+				return guard.length-this->length;//old length - new length
 			}
 			constexpr void resize(size_type new_size){
 				while(this->length<new_size){
@@ -894,39 +909,45 @@ namespace mpv{
 					--length;
 				}
 			}
-            constexpr const_iterator find(const T& val)const{
-                return mpv::find(begin(),end(),val);
+            constexpr const_iterator find(const T& val)const noexcept(noexcept(mpv::find(this->begin(),this->end(),val))){
+                return mpv::find(this->begin(),this->end(),val);
             }
-            constexpr iterator find(const T& val){
-                return mpv::find(begin(),end(),val);
+            constexpr iterator find(const T& val)noexcept(noexcept(mpv::find(this->begin(),this->end(),val))){
+                return mpv::find(this->begin(),this->end(),val);
             }
-            constexpr size_type count(const T& val)const{
-                return mpv::count<const_iterator,T,size_type>(begin(),end(),val);
+            constexpr size_type count(const T& val)const noexcept(noexcept(mpv::count<const_iterator,T,size_type>(this->begin(),this->end(),val))){
+                return mpv::count<const_iterator,T,size_type>(this->begin(),this->end(),val);
             }
-			constexpr bool contains(const T& val)const{
-				return mpv::contains<const_iterator,T>(begin(),end(),val);
+			constexpr bool contains(const T& val)const noexcept(noexcept(mpv::contains<const_iterator,T>(this->begin(),this->end(),val))){
+				return mpv::contains<const_iterator,T>(this->begin(),this->end(),val);
 			}
-            constexpr size_type index_of(const T& val)const{
-                return mpv::index_of<const_iterator,T,size_type>(begin(),end(),val);
+            constexpr size_type index_of(const T& val)const noexcept(noexcept(mpv::index_of<const_iterator,T,size_type>(this->begin(),this->end(),val))){
+                return mpv::index_of<const_iterator,T,size_type>(this->begin(),this->end(),val);
             }
 			template<typename Pred=less<>>
 			constexpr void sort(Pred pred=Pred{}){
-				mpv::insertion_sort(begin(),end(),pred);
+				mpv::insertion_sort(this->begin(),this->end(),pred);
 			}
 			template<typename Lambda>
-			constexpr bool any(Lambda&& func=Lambda{})const{
+			constexpr bool any(Lambda&& func=Lambda{})const noexcept(noexcept(fake_copy_init<bool>(func(*this->begin())))){
                 for(const_reference x:*this)
                     if(func(x))return 1;
                 return 0;
 			}
 			template<typename Lambda>
-			constexpr void foreach(Lambda&& func=Lambda{}){
+			constexpr void foreach(Lambda&& func=Lambda{})const noexcept(noexcept(func(*this->begin()))){
+				for(const_reference x:*this)
+					func(x);
+			}
+			template<typename Lambda>
+			constexpr void foreach(Lambda&& func=Lambda{})noexcept(noexcept(func(*this->begin()))){
 				for(reference x:*this)
 					func(x);
 			}
 			template<typename Lambda>
 			constexpr auto map(Lambda&& func=Lambda{})const{
-				List<decltype(func(declval<const_reference>())),rebind_alloc<Alloc,decltype(func(declval<const_reference>()))>> new_list;
+				using U=mpv::remove_cvref_t<decltype(func(declval<const_reference>()))>;
+				List<U,rebind_alloc<Alloc,U>> new_list(AlNode_traits::select_on_container_copy_construction(alloc));
 				for(const_reference x:*this)
 					new_list.push_back(func(x));
 				return new_list;
@@ -938,57 +959,56 @@ namespace mpv{
 					if(func(x)) new_list.push_back(x);
 				return new_list;
 			}
-			constexpr List& reverse(){
-				mpv::reverse(begin(),end());
+			constexpr List& reverse()noexcept(noexcept(mpv::reverse(this->begin(),this->end()))){
+				mpv::reverse(this->begin(),this->end());
 				return *this;
 			}
 			constexpr bool empty()const noexcept{
 				return length==0;
 			}
 			constexpr const_reference operator[](size_type index)const noexcept{
-				NodePtr current=this->HEAD;
+				BaseNodePtr current=this->HEAD;
 				for(size_type i=0;i<index;i++)
 					current=current->next;
-				return current->data;
+				return to_node(current)->data;
 			}
 			constexpr reference operator[](size_type index)noexcept{
-				NodePtr current=this->HEAD;
+				BaseNodePtr current=this->HEAD;
 				for(size_type i=0;i<index;i++)
 					current=current->next;
-				return current->data;
+				return to_node(current)->data;
 			}
 			constexpr const_reference back()const noexcept{
-				return TAIL->data;
+				return to_node(TAIL)->data;
 			}
 			constexpr reference back()noexcept{
-				return TAIL->data;
+				return to_node(TAIL)->data;
 			}
-			constexpr bool operator==(const List& other)const{
+			constexpr bool operator==(const List& other)const noexcept(noexcept(equal(this->begin(),this->end(),other.begin()))){
 				if(this->length!=other.length) return false;
 				else return equal(this->begin(),this->end(),other.begin());
 			}
-			constexpr bool operator!=(const List& other)const{
+			constexpr bool operator!=(const List& other)const noexcept(noexcept(equal(this->begin(),this->end(),other.begin()))){
 				if(this->length!=other.length) return true;
 				else return !equal(this->begin(),this->end(),other.begin());
 			}
-            constexpr bool operator<(const List& other)const{
+            constexpr bool operator<(const List& other)const noexcept(noexcept(fake_copy_init<bool>(*this->begin()<*this->begin()))){
                 return lexicographical_compare(this->begin(),this->end(),other.begin(),other.end());
             }
-            constexpr bool operator>(const List& other)const{
+            constexpr bool operator>(const List& other)const noexcept(noexcept(fake_copy_init<bool>(*this->begin()<*this->begin()))){
                 return lexicographical_compare(other.begin(),other.end(),this->begin(),this->end());
             }
-            constexpr bool operator<=(const List& other)const{
+            constexpr bool operator<=(const List& other)const noexcept(noexcept(fake_copy_init<bool>(*this->begin()<*this->begin()))){
                 return !lexicographical_compare(other.begin(),other.end(),this->begin(),this->end());
             }
-            constexpr bool operator>=(const List& other)const{
+            constexpr bool operator>=(const List& other)const noexcept(noexcept(fake_copy_init<bool>(*this->begin()<*this->begin()))){
                 return !lexicographical_compare(this->begin(),this->end(),other.begin(),other.end());
             }
 			constexpr void clear()noexcept{
-				NodePtr aux;
 				length=0;
 				TAIL=NULLPTR;
 				while(HEAD!=NULLPTR){
-					aux=HEAD;
+					NodePtr aux=to_node(HEAD);
 					HEAD=HEAD->next;
 					delete_node(aux);
 				}
@@ -997,51 +1017,38 @@ namespace mpv{
                 return this->alloc;
             }
 			~List()noexcept{
-#if defined(DEBUG) && (defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_))
-				(void)size();
-#endif
-				NodePtr aux;
 				while(HEAD!=NULLPTR){
-					aux=HEAD;
+					NodePtr aux=to_node(HEAD);
 					HEAD=HEAD->next;
 					delete_node(aux);
 				}
 			}
 			constexpr iterator begin()noexcept{
-				return NodePtr(HEAD);
+				return iterator(HEAD);
 			}
 			constexpr iterator end()noexcept{
-				return NodePtr(NULLPTR);
+				return iterator(NULLPTR);
 			}
 			constexpr const_iterator begin()const noexcept{
-				return const_NodePtr(HEAD);
+				return const_iterator(HEAD);
 			}
 			constexpr const_iterator end()const noexcept{
-				return const_NodePtr(NULLPTR);
+				return const_iterator(NULLPTR);
 			}
-			template<typename t,typename Alloc_>friend void debug(const List<t,Alloc_>&);
 	};
 	template<typename Out,typename T,typename Alloc>
 	Out& operator<<(Out& stream,const List<T,Alloc>& list){
+		using reference=typename List<T,Alloc>::const_iterator::reference;
+		typename List<T,Alloc>::size_type remaining=list.size();
 		stream<<"[";
-		typename List<T,Alloc>::const_iterator last=list.end();
-		--last;
-		for(typename List<T,Alloc>::const_iterator i=list.begin();i!=list.end();i++){
-			stream<<""<<*i;
-			if(i!=last)
-				stream<<", ";		
+		for(reference x:list){
+			stream<<""<<x;
+			if(--remaining)
+				stream<<", ";
 		}
 		stream<<"]";
 		return stream;
 	}
-#if defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_)
-    template<typename T,typename Alloc>
-    void debug(const List<T,Alloc>& list){
-        std::cout<<"length: "<<list.size()<<std::endl
-                 <<"head: "<<list.HEAD<<std::endl
-                 <<"tail: "<<list.TAIL<<std::endl;
-    }
-#endif
 #undef HEAD
 #undef TAIL
 #undef NULLPTR

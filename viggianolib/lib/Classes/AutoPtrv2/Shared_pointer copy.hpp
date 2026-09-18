@@ -43,7 +43,6 @@ namespace mpv{
 	struct Block_pointer_deleter_and_allocator final:CtrlBlock{
 		CompressedTriple<Del,Alloc,Tp> compressed_triple;
 		constexpr Block_pointer_deleter_and_allocator(Tp p,const Del& deleter,const Alloc& alloc):compressed_triple(arg1and2_tag{},deleter,alloc,p){}
-		constexpr Block_pointer_deleter_and_allocator(Tp p,Del&& deleter,const Alloc& alloc):compressed_triple(arg1and2_tag{},static_cast<Del&&>(deleter),alloc,p){}
 		void destroy_object()noexcept override{ compressed_triple.getV1()(compressed_triple.getV3()); }
 		void delete_this()noexcept override{
 			using BlockAlloc=typename allocator_traits<Alloc>::template rebind_alloc<Block_pointer_deleter_and_allocator>;
@@ -148,28 +147,27 @@ namespace mpv{
 		~Block_object_and_allocator()noexcept{}
 	};
 	template<typename T,typename Alloc>
-	struct alignas(If_t< bool(alignof(T) > alignof(CtrlBlock)),T,CtrlBlock>) Block_object_and_allocator<T[],Alloc> final:CtrlBlock,EBCO<typename allocator_traits<Alloc>::template rebind_alloc<T>>{
-		const size_t n;
+	struct Block_object_and_allocator<T[],Alloc> final:CtrlBlock,EBCO<typename allocator_traits<Alloc>::template rebind_alloc<T>>{
+		const size_t count;
 		using TAlloc=typename allocator_traits<Alloc>::template rebind_alloc<remove_cv_t<T>>;
 		//T obj[];//Arreglo flexible
-		constexpr Block_object_and_allocator(const size_t n,const Alloc& alloc):EBCO<TAlloc>(alloc),n(n){
-			mpv::default_construct_n(this->get_val(),align_nextto<T>(this),n);
+		constexpr Block_object_and_allocator(const size_t count,const Alloc& alloc):EBCO<TAlloc>(alloc),count(count){
+			mpv::default_construct_n(this->get_val(),align_nextto<T>(this),count);
 		}
-		constexpr Block_object_and_allocator(const size_t n,const Alloc& alloc,const T& init):EBCO<TAlloc>(alloc),n(n){
-			mpv::fill_construct_n(this->get_val(),align_nextto<T>(this),n,init);
+		constexpr Block_object_and_allocator(const size_t count,const Alloc& alloc,const T& init):EBCO<TAlloc>(alloc),count(count){
+			mpv::fill_construct_n(this->get_val(),align_nextto<T>(this),count,init);
 		}
 		void destroy_object()noexcept override{
-			mpv::destroy_n(this->get_val(),align_nextto<T>(this),n);
+			mpv::destroy_n(this->get_val(),align_nextto<T>(this),count);
 		}
 		void delete_this()noexcept override{
-			using BlockAlloc=typename allocator_traits<Alloc>::template rebind_alloc<Block_object_and_allocator>;
-			using BlockPtr=typename allocator_traits<BlockAlloc>::pointer;
-			BlockPtr this_ptr=mpv::pointer_traits<BlockPtr>::pointer_to(*this);
-			BlockAlloc block_allocator(this->get_val());
-			const size_t T_byte_count=n*sizeof(T);
-			const size_t block_count=1+T_byte_count/sizeof(Block_object_and_allocator)+bool(T_byte_count%sizeof(Block_object_and_allocator));
+			using ByteAlloc=typename allocator_traits<Alloc>::template rebind_alloc<char>;
+			using BytePtr=typename allocator_traits<ByteAlloc>::pointer;
+			size_t count=this->count;
+			BytePtr this_ptr=mpv::pointer_traits<BytePtr>::pointer_to(*reinterpret_cast<char*>(this));
+			ByteAlloc byte_allocator(this->get_val());
 			this->~Block_object_and_allocator();
-			allocator_traits<BlockAlloc>::deallocate(block_allocator,this_ptr,block_count);
+			allocator_traits<ByteAlloc>::deallocate(byte_allocator,this_ptr,sizeof(Block_object_and_allocator)+alignof(T)-1+count*sizeof(T));
 		}
 	};
 	template<typename T> class wPtr;
@@ -187,7 +185,7 @@ namespace mpv{
 			template<typename Up,typename Del>
 			constexpr void setpd(const Up ptr,Del dt){
 				TemporaryOwnerDel<Up,Del> temp_owner(ptr,dt);
-				ctrl_block=new Block_pointer_and_deleter<Up,Del>(ptr,static_cast<Del&&>(dt));
+				ctrl_block=new Block_pointer_and_deleter<Up,Del>(ptr,dt);
 				this->data=unfancy(ptr);
 				temp_owner.call_deleter=false;
 			}
@@ -198,7 +196,7 @@ namespace mpv{
 				CtrlBlockAlloc ctrlblock_alloc(alloc);
 				AllocConstructPtr allocation_temp_owner(ctrlblock_alloc);
 				allocation_temp_owner.allocate();
-				::new(unfancy(allocation_temp_owner.ptr)) Block_pointer_deleter_and_allocator<Up,Del,Alloc>(temp_owner.ptr,static_cast<Del&&>(dt),alloc);
+				::new(unfancy(allocation_temp_owner.ptr)) Block_pointer_deleter_and_allocator<Up,Del,Alloc>(temp_owner.ptr,dt,alloc);
 				this->data=unfancy(temp_owner.ptr);
 				this->ctrl_block=unfancy(allocation_temp_owner.ptr);
 				temp_owner.call_deleter=false;
@@ -221,21 +219,19 @@ namespace mpv{
 		public:
 			using element_type=typename PtrBase<T>::element_type;
 			template<typename U>
-			constexpr sPtr(const wPtr<U>& weakPtr)noexcept:ctrl_block(weakPtr.ctrl_block){	//construye un puntero fuerte en base a uno debil
+			constexpr sPtr(const wPtr<U>& weakPtr)noexcept:PtrBase<T>(weakPtr.data),ctrl_block(weakPtr.ctrl_block){	//construye un puntero fuerte en base a uno debil
 #ifdef USE_ATOMIC	// hay que implementar la version atimic
-				if(weakPtr.ctrl_block==nullptr || weakPtr.ctrl_block->sharedCount==0)
+				if(weakPtr.ctrl_block==nullptr || weakPtr.ctrl_block->sharedCount==0){
 					this->ctrl_block=nullptr;
-				else{
-					this->ctrl_block->sharedCount++;
-					this->data=weakPtr.data;
-				} 
+					this->data=nullptr;
+				}
+				else this->ctrl_block->sharedCount++;
 #else
-				if(weakPtr.ctrl_block==nullptr || weakPtr.ctrl_block->sharedCount==0)
+				if(weakPtr.ctrl_block==nullptr || weakPtr.ctrl_block->sharedCount==0){
 					this->ctrl_block=nullptr;
-				else{
-					this->ctrl_block->sharedCount++;
-					this->data=weakPtr.data;
-				} 
+					this->data=nullptr;
+				}
+				else this->ctrl_block->sharedCount++;
 #endif
 			}
 			constexpr sPtr()noexcept=default;
@@ -268,7 +264,7 @@ namespace mpv{
 			constexpr sPtr(const sPtr<U>& other)noexcept:PtrBase<T>(other.data),ctrl_block(other.ctrl_block){
 				if(this->ctrl_block!=nullptr) this->ctrl_block->sharedCount++;
 			}
-			constexpr sPtr(sPtr&& other)noexcept:PtrBase<T>(other.data),ctrl_block(other.ctrl_block){
+			constexpr sPtr(sPtr<T>&& other)noexcept:PtrBase<T>(other.data),ctrl_block(other.ctrl_block){
 				other.data=nullptr;
 				other.ctrl_block=nullptr;
 			}
@@ -535,14 +531,12 @@ namespace mpv{
 	constexpr enable_if_t<is_no_size_array_v<T>,sPtr<T>> alloc_sPtr(size_t n,const Alloc& alloc){
 		sPtr<T> ptr;
 		using Block=Block_object_and_allocator<remove_cv_t<T>,Alloc>;
-		using BlockAlloc=typename allocator_traits<Alloc>::template rebind_alloc<Block>;
-		BlockAlloc block_allocator(alloc);
-		const size_t T_byte_count=n*sizeof(remove_extent_t<T>);
-		const size_t block_count=1+T_byte_count/sizeof(Block)+bool(T_byte_count%sizeof(Block));
-		AllocatorDeleteGuard<BlockAlloc> guard{block_allocator,block_count};
+		using ByteAlloc=typename allocator_traits<Alloc>::template rebind_alloc<char>;
+		ByteAlloc byte_alloc(alloc);
+		AllocatorDeleteGuard<ByteAlloc> guard{byte_alloc,sizeof(Block)+alignof(T)-1+n*sizeof(remove_extent_t<T>)};
 		::new(reinterpret_cast<void*>(unfancy(guard.ptr))) Block(n,alloc);
-		ptr.ctrl_block=static_cast<CtrlBlock*>(unfancy(guard.ptr));
-		ptr.data=align_nextto<remove_extent_t<T>>(static_cast<Block*>(ptr.ctrl_block));
+		ptr.ctrl_block=reinterpret_cast<CtrlBlock*>(unfancy(guard.ptr));
+		ptr.data=align_nextto<remove_extent_t<T>>(reinterpret_cast<Block*>(ptr.ctrl_block));
 		guard.ptr=nullptr;
 		return ptr;
 	}
@@ -550,14 +544,12 @@ namespace mpv{
 	constexpr enable_if_t<is_no_size_array_v<T>,sPtr<T>> alloc_sPtr(size_t n,const Alloc& alloc,const remove_extent_t<T>& init){
 		sPtr<T> ptr;
 		using Block=Block_object_and_allocator<remove_cv_t<T>,Alloc>;
-		using BlockAlloc=typename allocator_traits<Alloc>::template rebind_alloc<Block>;
-		BlockAlloc block_allocator(alloc);
-		const size_t T_byte_count=n*sizeof(remove_extent_t<T>);
-		const size_t block_count=1+T_byte_count/sizeof(Block)+bool(T_byte_count%sizeof(Block));
-		AllocatorDeleteGuard<BlockAlloc> guard{block_allocator,block_count};
+		using ByteAlloc=typename allocator_traits<Alloc>::template rebind_alloc<char>;
+		ByteAlloc byte_alloc(alloc);
+		AllocatorDeleteGuard<ByteAlloc> guard{byte_alloc,sizeof(Block)+alignof(T)-1+n*sizeof(remove_extent_t<T>)};
 		::new(reinterpret_cast<void*>(unfancy(guard.ptr))) Block(n,alloc,init);
-		ptr.ctrl_block=static_cast<CtrlBlock*>(unfancy(guard.ptr));
-		ptr.data=align_nextto<remove_extent_t<T>>(static_cast<Block*>(ptr.ctrl_block));
+		ptr.ctrl_block=reinterpret_cast<CtrlBlock*>(unfancy(guard.ptr));
+		ptr.data=align_nextto<remove_extent_t<T>>(reinterpret_cast<Block*>(ptr.ctrl_block));
 		guard.ptr=nullptr;
 		return ptr;
 	}

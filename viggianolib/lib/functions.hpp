@@ -2,7 +2,7 @@
 
 namespace mpv{
 	template<typename T>
-	constexpr enable_if_t<is_scalar_v<T>,bool> is_all_bits_zero(const T& val){
+	constexpr enable_if_t<is_scalar_v<T>,bool> is_all_bits_zero(const T& val)noexcept{
 		constexpr T zero{};
 		if constexpr(USE_MEMCPY){
 			return memcmp(&val,&zero,sizeof(T))==0;

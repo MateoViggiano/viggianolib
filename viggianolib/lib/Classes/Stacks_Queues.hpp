@@ -11,8 +11,11 @@ namespace mpv{
 		Basic_Node(const Basic_Node&)=delete;
 		Basic_Node& operator=(const Basic_Node&)=delete;
 	};
+	template<typename> class const_Node_iterator;
 	template<typename Types>
 	class Node_iterator{
+		friend class const_Node_iterator<Types>;
+		using const_iterator=const_Node_iterator<Types>;
 		public:
 			using iterator_category=forward_iterator_tag;
 			using NodePtr=typename Types::NodePtr;
@@ -21,8 +24,9 @@ namespace mpv{
 			using pointer=typename Types::pointer;
 			using reference=typename Types::reference;
 		private:
-			NodePtr ptr;
+			NodePtr ptr{};
 		public:
+			constexpr Node_iterator()noexcept=default;
 			constexpr Node_iterator(NodePtr ptr)noexcept:ptr(ptr){}
 			constexpr reference operator*()const noexcept{
 				return ptr->data;
@@ -37,7 +41,7 @@ namespace mpv{
 			constexpr Node_iterator operator++(int)noexcept{
 				Node_iterator aux=*this;
 				ptr=ptr->next;
-				return *this;
+				return aux;
 			}
 			constexpr bool operator==(const Node_iterator& other)const noexcept{
 				return this->ptr==other.ptr;
@@ -45,10 +49,16 @@ namespace mpv{
 			constexpr bool operator!=(const Node_iterator& other)const noexcept{
 				return this->ptr!=other.ptr;
 			}
-			template<typename> friend class const_Node_iterator;
+			constexpr bool operator==(const const_iterator& other)const noexcept{
+				return this->ptr==other.ptr;
+			}
+			constexpr bool operator!=(const const_iterator& other)const noexcept{
+				return this->ptr!=other.ptr;
+			}
 	};
 	template<typename Types>
 	class const_Node_iterator{
+		friend class Node_iterator<Types>;
 		public:
 			using iterator_category=forward_iterator_tag;
 			using NodePtr=typename Types::const_NodePtr;
@@ -57,8 +67,9 @@ namespace mpv{
 			using pointer=typename Types::const_pointer;
 			using reference=typename Types::const_reference;
 		private:
-			NodePtr ptr;
+			NodePtr ptr{};
 		public:
+			constexpr const_Node_iterator()noexcept=default;
 			constexpr const_Node_iterator(NodePtr ptr)noexcept:ptr(ptr){}
 			constexpr const_Node_iterator(Node_iterator<Types> nonconst_it)noexcept:ptr(nonconst_it.ptr){}
 			constexpr reference operator*()const noexcept{
@@ -84,9 +95,30 @@ namespace mpv{
 			}
 	};
 #define head cp.V2
-#define alloc cp.getV1()
+#define alloc cp.getV1()	
+	template<typename Container>
+	struct NodeContainerGuard{
+		using NodePtr=typename Container::NodePtr;
+		Container& cont;
+		bool free_cont;
+		NodeContainerGuard(const NodeContainerGuard&)=delete;
+		NodeContainerGuard& operator=(const NodeContainerGuard&)=delete;
+		NodeContainerGuard(Container& cont)noexcept:cont(cont),free_cont(true){}
+		~NodeContainerGuard(){
+			if(free_cont){
+				while(cont.head!=nullptr){
+					NodePtr aux=cont.head;
+					cont.head=cont.head->next;
+					DESTROY(cont.alloc,aux);
+					Container::AlNode_traits::deallocate(cont.alloc,aux,1);
+				}
+				cont.reset();
+			}
+		}
+	};
 	template<typename T,typename Alloc=allocator<T>>
 	class Queue COUNT_IT{
+		template<typename> friend struct NodeContainerGuard;
 		private:
 			using Node=Basic_Node<T,typename allocator_traits<Alloc>::void_pointer>;
 			using AlTy=rebind_alloc<Alloc,T>;
@@ -150,38 +182,42 @@ namespace mpv{
 				this->tail=this->tail->next;
 			}
 			constexpr void copy_elements(const Queue& other){
-				NodePtr p=other.head;
-				if(p!=nullptr){
-					this->create_first_node(p->data);
-					p=p->next;
-					while(p!=nullptr){
-						this->link_back(p->data);
-						p=p->next;
+				const_iterator p(other.head);
+				if(p!=const_iterator(nullptr)){
+					this->create_first_node(*p);
+					NodeContainerGuard guard(*this);
+					++p;
+					while(p!=const_iterator(nullptr)){
+						this->link_back(*p);
+						++p;
 					}
+					guard.free_cont=false;
 				}
 			}
 			constexpr void copy_elements(Queue&& other){
 				if(other.head!=nullptr){
 					this->create_first_node(static_cast<value_type&&>(other.head->data));
+					NodeContainerGuard guard(*this);
 					NodePtr aux=other.head;
 					other.head=other.head->next;
 					other.delete_node(aux);
 					while(other.head!=nullptr){
-						this->link_back(other.head->data);
+						this->link_back(static_cast<value_type&&>(other.head->data));
 						aux=other.head;
 						other.head=other.head->next;
 						other.delete_node(aux);
 					}
+					other.tail=nullptr;
+					guard.free_cont=false;
 				}
-				other.reset();
 			}
-			constexpr void move_elements(Queue& other){
+			constexpr void move_elements(Queue& other)noexcept{
 				this->head=other.head;
 				this->tail=other.tail;
 				other.reset();
 			}
 		public:
-			constexpr Queue()noexcept=default;
+			constexpr Queue()noexcept(mpv::is_nothrow_default_constructible_v<AlNode>)=default;
 			constexpr explicit Queue(const Alloc& al)noexcept:cp(arg1_tag{},al){}
 			constexpr Queue(const Queue& other):cp(arg1_tag{},AlNode_traits::select_on_container_copy_construction(other.alloc)){
 				this->copy_elements(other);
@@ -198,21 +234,7 @@ namespace mpv{
 					tail=other.tail;
 					other.reset();
 				}
-				else{
-					if(other.head!=nullptr){
-						this->create_first_node(static_cast<value_type&&>(other.head->data));
-						NodePtr aux=other.head;
-						other.head=other.head->next;
-						other.delete_node(aux);
-						while(other.head!=nullptr){
-							this->link_back(static_cast<value_type&&>(other.head->data));
-							aux=other.head;
-							other.head=other.head->next;
-							other.delete_node(aux);
-						}
-						other.tail=nullptr;
-					}
-				}
+				else this->copy_elements(static_cast<Queue&&>(other));
 			}
 			constexpr Queue& operator=(const Queue& other){
 				if(this==&other) return *this;
@@ -296,7 +318,7 @@ namespace mpv{
 				}
 				tail=nullptr;
 			}
-			~Queue()noexcept{
+			~Queue(){
 				while(head!=nullptr){
 					NodePtr aux=this->head;
 					this->head=this->head->next;
@@ -335,6 +357,7 @@ namespace mpv{
 	}
 	template<typename T,typename Alloc=allocator<T>>
 	class Stack COUNT_IT{
+		template<typename> friend struct NodeContainerGuard;
 		private:
 			using Node=Basic_Node<T,typename allocator_traits<Alloc>::void_pointer>;
 			using AlTy=rebind_alloc<Alloc,T>;
@@ -382,33 +405,40 @@ namespace mpv{
 				CONSTRUCT_VARARGS(this->alloc,guard.ptr,static_cast<Args&&>(args));
 				return guard.release();
 			}
+			constexpr void reset()noexcept{
+				head=nullptr;
+			}
 			constexpr void copy_elements(const Stack& other){
-				NodePtr p=other.head;
-				if(p!=nullptr){
-					this->head=this->create_node(p->data);
-					p=p->next;
-					for(NodePtr last=this->head;p!=nullptr;last=last->next){
-						last->next=this->create_node(p->data);
-						p=p->next;
+				const_iterator p(other.head);
+				if(p!=const_iterator(nullptr)){
+					this->head=this->create_node(*p);
+					NodeContainerGuard guard(*this);
+					++p;
+					for(NodePtr last=this->head;p!=const_iterator(nullptr);last=last->next){
+						last->next=this->create_node(*p);
+						++p;
 					}
+					guard.free_cont=false;
 				}
 			}
 			constexpr void copy_elements(Stack&& other){
 				if(other.head!=nullptr){
 					this->head=this->create_node(static_cast<value_type&&>(other.head->data));
+					NodeContainerGuard guard(*this);
 					NodePtr aux=other.head;
 					other.head=other.head->next;
 					other.delete_node(aux);
 					for(NodePtr last=this->head;other.head!=nullptr;last=last->next){
-						last->next=this->create_node(other.head->data);
+						last->next=this->create_node(static_cast<value_type&&>(other.head->data));
 						aux=other.head;
 						other.head=other.head->next;
 						other.delete_node(aux);
 					}
+					guard.free_cont=false;
 				}				
 			}
 		public:
-			constexpr Stack()noexcept=default;
+			constexpr Stack()noexcept(mpv::is_nothrow_default_constructible_v<AlNode>)=default;
 			constexpr explicit Stack(const Alloc& al)noexcept:cp(arg1_tag{},al){}
 			constexpr Stack(const Stack& other):cp(arg1_tag{},AlNode_traits::select_on_container_copy_construction(other.alloc)){
 				this->copy_elements(other);
@@ -424,8 +454,7 @@ namespace mpv{
 					this->head=other.head;
 					other.head=nullptr;
 				}
-				else
-					this->copy_elements(static_cast<Stack&&>(other));
+				else this->copy_elements(static_cast<Stack&&>(other));
 			}
 			constexpr Stack& operator=(const Stack& other){
 				if(this==&other) return *this;
@@ -492,7 +521,7 @@ namespace mpv{
 					delete_node(aux);
 				}
 			}
-			~Stack()noexcept{
+			~Stack(){
 				clear();
 			}
 			constexpr iterator begin()noexcept{

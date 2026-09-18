@@ -7,7 +7,7 @@ namespace mpv{
         using value_compare=Cmp;
         using allocator_type=Alloc;
         static constexpr bool allow_repeated=repeated;
-        static constexpr const key_type& getKey(const value_type& val){
+        static constexpr const key_type& getKey(const value_type& val)noexcept{
             return val;
         }
     };
@@ -33,8 +33,8 @@ namespace mpv{
             template<typename,typename,typename> friend class Set;
 			template<typename Lambda>
 			constexpr auto map(Lambda&& func=Lambda{})const{
-                using func_ret=decltype(func(declval<const_reference>()));
-                Set<func_ret,rebind_alloc<Alloc,func_ret>,rebind_t<Cmp,func_ret>> new_set(base::AlTy_traits::select_on_container_copy_construction(this->get_allocator()));
+                using U=mpv::remove_cvref_t<decltype(func(declval<const_reference>()))>;
+                Set<U,rebind_alloc<Alloc,U>,rebind_t<Cmp,U>> new_set(base::AlTy_traits::select_on_container_copy_construction(this->get_allocator()));
                 for(const_reference x:*this)
                     new_set.insert(func(x));
 				return new_set;
@@ -46,19 +46,19 @@ namespace mpv{
                 return new_set;
             }
             constexpr Set operator&(const Set& other)const{
-                Set new_set(base::AlTy_traits::select_on_container_copy_construction(this->get_allocator()));
+                Set new_set(this->get_key_cmp(),base::AlTy_traits::select_on_container_copy_construction(this->get_allocator()));
                 for(const_reference x:*this)
                     if(other.contains(x)) new_set.insert(x);
                 return new_set;
             }
             constexpr Set operator-(const Set& other)const{
-                Set new_set(base::AlTy_traits::select_on_container_copy_construction(this->get_allocator()));
+                Set new_set(this->get_key_cmp(),base::AlTy_traits::select_on_container_copy_construction(this->get_allocator()));
                 for(const_reference x:*this)
                     if(!other.contains(x)) new_set.insert(x);
                 return new_set;
             }
             constexpr Set operator^(const Set& other)const{
-                Set new_set(base::AlTy_traits::select_on_container_copy_construction(this->get_allocator()));
+                Set new_set(this->get_key_cmp(),base::AlTy_traits::select_on_container_copy_construction(this->get_allocator()));
                 for(const_reference x:*this)
                     if(!other.contains(x)) new_set.insert(x);
                 for(const_reference x:other)
@@ -75,12 +75,14 @@ namespace mpv{
                 return *this;
             }
             constexpr Set& operator-=(const Set& other){
-                for(const_reference x:other)
+                if(this==&other) this->clear();
+                else for(const_reference x:other)
                     this->del_elem(x);
                 return *this;
             }
             constexpr Set& operator^=(const Set& other){
-                for(const_reference x:other)
+                if(this==&other) this->clear();
+                else for(const_reference x:other)
                     if(this->contains(x)) this->del_elem(x);
                     else this->insert(x);
                 return *this;
@@ -105,11 +107,11 @@ namespace mpv{
             using typename base::iterator;
             using typename base::const_iterator;
             using typename base::node_type;
-            template<typename,typename,typename> friend class Set;
+            template<typename,typename,typename> friend class MultiSet;
 			template<typename Lambda>
 			constexpr auto map(Lambda&& func=Lambda{})const{
-                using func_ret=decltype(func(declval<const_reference>()));
-                MultiSet<func_ret,rebind_alloc<Alloc,func_ret>,rebind_t<Cmp,func_ret>> new_set(base::AlTy_traits::select_on_container_copy_construction(this->get_allocator()));
+                using U=mpv::remove_cvref_t<decltype(func(declval<const_reference>()))>;
+                MultiSet<U,rebind_alloc<Alloc,U>,rebind_t<Cmp,U>> new_set(base::AlTy_traits::select_on_container_copy_construction(this->get_allocator()));
                 for(const_reference x:*this)
                     new_set.insert(func(x));
 				return new_set;

@@ -14,6 +14,7 @@
 	typedef int ssize_t;
 	typedef int ptrdiff_t;
 #endif
+typedef size_t uintptr_t;
 
 #include "initializer_list"
 #if (defined(_ATOMIC_) || defined(_GLIBCXX_ATOMIC)) && !defined(DISABLE_ATOMIC)
@@ -74,8 +75,8 @@ void operator delete[](void*,size_t)noexcept;
 
 #include "lib/def_macros.hpp"
 #include "lib/metafunctions/metafunctions.hpp"
-#include "lib/iterator_algorighms.hpp"
 #include "lib/functions.hpp"
+#include "lib/iterator_algorighms.hpp"
 #include "lib/arrays.hpp"
 #include "lib/str.hpp"
 #include "lib/classes.hpp"

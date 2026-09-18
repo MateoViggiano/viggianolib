@@ -52,7 +52,7 @@ namespace mpv{
             ptr=nullptr;
             return aux;
         }
-        constexpr void allocate(){
+        constexpr void allocate(){// Solo se debe llamar 1 vez
             ptr=nullptr;
             ptr=allocator_traits<Alloc>::allocate(al,1);
         }
@@ -67,7 +67,7 @@ namespace mpv{
 		Alloc& al;
 		It iter;
 		bool destroy=true;
-		constexpr DestroyGuard(Alloc& al,It iter)noexcept(is_nothrow_constructible_v<It>):al(al),iter(iter){}
+		constexpr DestroyGuard(Alloc& al,It iter)noexcept(is_nothrow_copy_constructible_v<It>):al(al),iter(iter){}
 		~DestroyGuard()noexcept{
 			if constexpr(!Uses_default_destroy_v<Alloc,iter_value_t<It>*> || !is_trivially_destructible_v<iter_value_t<It>>){
 				if(destroy) allocator_traits<Alloc>::destroy(al,unfancy(iter));
@@ -82,11 +82,15 @@ namespace mpv{
 		Alloc& al;
 		It iter;
 		size_type count=0;
-		constexpr DestroySequenceGuard(Alloc& al,It iter)noexcept(is_nothrow_constructible_v<It>):al(al),iter(iter){}
-		constexpr DestroySequenceGuard(Alloc& al,It iter,size_type count)noexcept(is_nothrow_constructible_v<It>):al(al),iter(iter),count(count){}
-		~DestroySequenceGuard()noexcept(noexcept(iter++)){
+		constexpr DestroySequenceGuard(Alloc& al,It iter)noexcept(is_nothrow_copy_constructible_v<It>):al(al),iter(iter){}
+		constexpr DestroySequenceGuard(Alloc& al,It iter,size_type count)noexcept(is_nothrow_copy_constructible_v<It>):al(al),iter(iter),count(count){}
+		~DestroySequenceGuard(){
 			if constexpr(!Uses_default_destroy_v<Alloc,iter_value_t<It>*> || !is_trivially_destructible_v<iter_value_t<It>>){
-				while(count-->0) allocator_traits<Alloc>::destroy(al,unfancy(iter++));
+				if constexpr(is_random_access_iterator_v<It>){
+					iter+=count;
+					while(count-->0) allocator_traits<Alloc>::destroy(al,unfancy(--iter));
+				} 
+				else while(count-->0) allocator_traits<Alloc>::destroy(al,unfancy(iter++));
 			}
 		}
 		DestroySequenceGuard(const DestroySequenceGuard&)=delete;
@@ -104,5 +108,21 @@ namespace mpv{
 		}
 		DefaultDestroyArrayGuard(const DefaultDestroyArrayGuard&)=delete;
 		DefaultDestroyArrayGuard& operator=(const DefaultDestroyArrayGuard&)=delete;
+	};
+	template<typename T>
+	struct AssignNullGuard{
+		T& ptr;
+		AssignNullGuard(T& ptr)noexcept:ptr(ptr){}
+		~AssignNullGuard()noexcept(noexcept(ptr=nullptr)){
+			ptr=nullptr;
+		}
+	};
+	template<typename Cont>
+	struct ClearGuard{
+		Cont* cont;
+		ClearGuard(Cont& cont)noexcept:cont(mpv::addressof(cont)){}
+		~ClearGuard(){
+			if(cont) cont->clear();
+		}
 	};
 }

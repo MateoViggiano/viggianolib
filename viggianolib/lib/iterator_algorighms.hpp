@@ -1,5 +1,4 @@
 #pragma once
-#include"Classes/Optional.hpp"
 #include"Classes/TemporaryOwners.hpp"
 #include"../viggiano.hpp"
 namespace mpv{
@@ -34,7 +33,7 @@ namespace mpv{
 		}
 	}
 	template<typename T,typename U>
-	constexpr void copy_trivial(T* dest,const U* source,size_t size){// If it does overlap, source should be >= dest
+	constexpr void copy_trivial(T* dest,const U* source,size_t size)noexcept{// If it does overlap, source should be >= dest
 		if constexpr(USE_MEMCPY){
 			MEMMOVE(dest,source,size*sizeof(U));
 		}else{
@@ -43,7 +42,7 @@ namespace mpv{
 		}
 	}
 	template<typename T,typename U>
-	constexpr void copy_backward_trivial(T* destlast,const U* sourcelast,size_t size){// If it does overlap, source should be <= dest
+	constexpr void copy_backward_trivial(T* destlast,const U* sourcelast,size_t size)noexcept{// If it does overlap, source should be <= dest
 		if constexpr(USE_MEMCPY){
 			MEMMOVE(destlast-size,sourcelast-size,size*sizeof(U));
 		}else{
@@ -52,7 +51,7 @@ namespace mpv{
 		}
 	}
 	template<typename T,typename U>
-	constexpr void reverse_copy_trivial(T* dest,const U* source,size_t size){// If it does overlap, source should be <= dest
+	constexpr void reverse_copy_trivial(T* dest,const U* source,size_t size)noexcept{// If it does overlap, source should be <= dest
 		if constexpr(USE_MEMCPY){
 			MEMMOVE(dest,source,size*sizeof(U));
 		}else{
@@ -62,7 +61,7 @@ namespace mpv{
 		}
 	}
 	template<typename T,typename U>
-	constexpr void copy_trivial_no_overlap(T* dest,const U* source,size_t size){// If it does overlap, source should be >= dest
+	constexpr void copy_trivial_no_overlap(T* dest,const U* source,size_t size)noexcept{
 		if constexpr(USE_MEMCPY){
 			MEMCPY(dest,source,size*sizeof(U));
 		}else{
@@ -71,7 +70,7 @@ namespace mpv{
 		}
 	}
 	template<typename T,typename U>
-	constexpr void copy_trivial_overlap(T* dest,const U* source,size_t size){
+	constexpr void copy_trivial_overlap(T* dest,const U* source,size_t size)noexcept{
 		if constexpr(USE_MEMCPY){
 			MEMMOVE(dest,source,size*sizeof(U));
 		}else{
@@ -87,14 +86,14 @@ namespace mpv{
 		}
 	}
 	template<typename T,typename V>
-	constexpr void fill_trivial(T* dest,size_t size,const V val){
+	constexpr void fill_trivial(T* dest,size_t size,const V val)noexcept{
 		if constexpr(USE_MEMCPY){
 			if constexpr(fill_memset_safe_iter<T*,V>){
 				MEMSET(dest,val,size*sizeof(T));
 				return;
 			}
 			else if constexpr(fill_zero_memset_safe_iter<T*,V>){
-				if(is_all_bits_zero(val)){
+				if(mpv::is_all_bits_zero(val)){
 					MEMSET(dest,0,size*sizeof(T));
 					return;
 				}
@@ -104,7 +103,7 @@ namespace mpv{
 			*(dest++)=val;
 	}
 	template<typename T,typename U>
-	constexpr int same_size_equal_trivial(const T* a,const U* b,size_t size){
+	constexpr int same_size_equal_trivial(const T* a,const U* b,size_t size)noexcept{
 		if constexpr(USE_MEMCPY){
 			return 0==MEMCMP(a,b,size*sizeof(U));
 		}else{
@@ -115,7 +114,7 @@ namespace mpv{
 		}
 	}
 	template<typename T,typename U>
-	constexpr int same_size_lex_compare_trivial(const T* a,const U* b,size_t size){
+	constexpr int same_size_lex_compare_trivial(const T* a,const U* b,size_t size)noexcept{
 		if constexpr(USE_MEMCPY){
 			return MEMCMP(a,b,size*sizeof(U));
 		}
@@ -129,7 +128,7 @@ namespace mpv{
 		}
 	}
 	template<typename OutIt,typename InIt>
-	constexpr void copy(OutIt dest,InIt first,InIt last){
+	constexpr void copy(OutIt dest,InIt first,InIt last)noexcept(is_bitcopy_assignable_iter_v<InIt,OutIt>){
 		if constexpr(!is_bitcopy_assignable_iter_v<InIt,OutIt>){
 			while(first!=last)
 				*(dest++)=*(first++);
@@ -139,7 +138,7 @@ namespace mpv{
 		}
 	}
 	template<typename BidIt1,typename BidIt2>
-	constexpr void copy_backward(BidIt1 destlast,BidIt2 first,BidIt2 last){
+	constexpr void copy_backward(BidIt1 destlast,BidIt2 first,BidIt2 last)noexcept(is_bitcopy_assignable_iter_v<BidIt2,BidIt1>){
 		if constexpr(!is_bitcopy_assignable_iter_v<BidIt2,BidIt1>){
 			while(last!=first)
 				*(--destlast)=*(--last);
@@ -149,7 +148,7 @@ namespace mpv{
 		}
 	}
 	template<typename BidIt1,typename BidIt2>
-	constexpr void copy_reverse(BidIt1 dest,BidIt2 first,BidIt2 last){
+	constexpr void copy_reverse(BidIt1 dest,BidIt2 first,BidIt2 last)noexcept(is_bitcopy_assignable_iter_v<BidIt2,BidIt1>){
 		if constexpr(!is_bitcopy_assignable_iter_v<BidIt2,BidIt1>){
 			advance(dest,distance(first,last));
 			while(last!=first)
@@ -160,7 +159,7 @@ namespace mpv{
 		}
 	}
 	template<typename RandIt1,typename RandIt2>
-	constexpr void copy_overlap(RandIt1 dest,RandIt2 first,RandIt2 last){
+	constexpr void copy_overlap(RandIt1 dest,RandIt2 first,RandIt2 last)noexcept(is_bitcopy_assignable_iter_v<RandIt2,RandIt1>){
 		if constexpr(!is_bitcopy_assignable_iter_v<RandIt2,RandIt1>){
 			if(first>=dest){
 				while(first!=last)
@@ -173,11 +172,11 @@ namespace mpv{
 			}
 		}
 		else{
-			copy_trivial(unfancy(dest),unfancy(first),last-first);
+			copy_trivial_overlap(unfancy(dest),unfancy(first),last-first);
 		}
 	}
 	template<typename OutIt,typename InIt>
-	constexpr void move(OutIt dest,InIt first,InIt last){
+	constexpr void move(OutIt dest,InIt first,InIt last)noexcept(is_bitcopy_move_assignable_iter_v<InIt,OutIt>){
 		if constexpr(!is_bitcopy_move_assignable_iter_v<InIt,OutIt>){
 			while(first!=last)
 				*(dest++)=mpv::move(*(first++));
@@ -187,7 +186,7 @@ namespace mpv{
 		}
 	}
 	template<typename BidIt1,typename BidIt2>
-	constexpr void move_backward(BidIt1 destlast,BidIt2 first,BidIt2 last){
+	constexpr void move_backward(BidIt1 destlast,BidIt2 first,BidIt2 last)noexcept(is_bitcopy_move_assignable_iter_v<BidIt2,BidIt1>){
 		if constexpr(!is_bitcopy_move_assignable_iter_v<BidIt2,BidIt1>){
 			while(last!=first)
 				*(--destlast)=mpv::move(*(--last));
@@ -197,7 +196,7 @@ namespace mpv{
 		}
 	}
 	template<typename BidIt1,typename BidIt2>
-	constexpr void move_reverse(BidIt1 dest,BidIt2 first,BidIt2 last){
+	constexpr void move_reverse(BidIt1 dest,BidIt2 first,BidIt2 last)noexcept(is_bitcopy_move_assignable_iter_v<BidIt2,BidIt1>){
 		if constexpr(!is_bitcopy_move_assignable_iter_v<BidIt2,BidIt1>){
 			advance(dest,distance(first,last));
 			while(last!=first)
@@ -208,8 +207,8 @@ namespace mpv{
 		}
 	}
 	template<typename FwdIt,typename T>
-	constexpr void fill(FwdIt first,FwdIt last,const T& val){
-		if constexpr(!fill_memset_safe_iter<FwdIt,T> && !fill_zero_memset_safe_iter<FwdIt,T>){
+	constexpr void fill(FwdIt first,FwdIt last,const T& val)noexcept(fill_memset_safe_iter<FwdIt,T> || fill_zero_memset_safe_iter<FwdIt,T>){
+		if constexpr(!(fill_memset_safe_iter<FwdIt,T> || fill_zero_memset_safe_iter<FwdIt,T>)){
 			while(first!=last)
 				*(first++)=val;
 		}
@@ -218,8 +217,8 @@ namespace mpv{
 		}
 	}
 	template<typename Alloc,typename OutIt,typename InIt>
-	constexpr void copy_construct(Alloc& alloc,OutIt dest,InIt first,InIt last){
-		if constexpr(!is_bitcopy_constructible_iter_v<InIt,OutIt>){
+	constexpr void copy_construct(Alloc& alloc,OutIt dest,InIt first,InIt last)noexcept(is_bitcopy_constructible_iter_v<InIt,OutIt> && Uses_default_construct_v<Alloc,decltype(unfancy(dest++)),decltype(*(first++))>){
+		if constexpr(!(is_bitcopy_constructible_iter_v<InIt,OutIt> && Uses_default_construct_v<Alloc,decltype(unfancy(dest++)),decltype(*(first++))>)){
 			DestroySequenceGuard<Alloc,OutIt> guard(alloc,dest);
 			while(first!=last){
 				allocator_traits<Alloc>::construct(alloc,unfancy(dest++),*(first++));
@@ -232,8 +231,8 @@ namespace mpv{
 		}
 	}
 	template<typename Alloc,typename OutIt,typename InIt>
-	constexpr void move_construct(Alloc& alloc,OutIt dest,InIt first,InIt last){
-		if constexpr(!is_bitcopy_move_constructible_iter_v<InIt,OutIt>){
+	constexpr void move_construct(Alloc& alloc,OutIt dest,InIt first,InIt last)noexcept(is_bitcopy_move_constructible_iter_v<InIt,OutIt> && Uses_default_construct_v<Alloc,decltype(unfancy(dest++)),decltype(mpv::move(*(first++)))>){
+		if constexpr(!(is_bitcopy_move_constructible_iter_v<InIt,OutIt> && Uses_default_construct_v<Alloc,decltype(unfancy(dest++)),decltype(mpv::move(*(first++)))>)){
 			DestroySequenceGuard<Alloc,OutIt> guard(alloc,dest);
 			while(first!=last){
 				allocator_traits<Alloc>::construct(alloc,unfancy(dest++),mpv::move(*(first++)));
@@ -246,8 +245,8 @@ namespace mpv{
 		}
 	}
 	template<typename Alloc,typename OutIt,typename InIt>
-	constexpr void move_construct_if_nt(Alloc& alloc,OutIt dest,InIt first,InIt last){
-		if constexpr(!is_bitcopy_move_constructible_iter_v<InIt,OutIt>){
+	constexpr void move_construct_if_nt(Alloc& alloc,OutIt dest,InIt first,InIt last)noexcept(is_bitcopy_move_constructible_iter_v<InIt,OutIt> && Uses_default_construct_v<Alloc,decltype(unfancy(dest++)),decltype(mpv::move_if_noexcept(*(first++)))>){
+		if constexpr(!(is_bitcopy_move_constructible_iter_v<InIt,OutIt> && Uses_default_construct_v<Alloc,decltype(unfancy(dest++)),decltype(mpv::move_if_noexcept(*(first++)))>)){
 			DestroySequenceGuard<Alloc,OutIt> guard(alloc,dest);
 			while(first!=last){
 				allocator_traits<Alloc>::construct(alloc,unfancy(dest++),mpv::move_if_noexcept(*(first++)));
@@ -260,8 +259,8 @@ namespace mpv{
 		}
 	}
 	template<typename Alloc,typename FwdIt,typename T>
-	constexpr void fill_construct(Alloc& alloc,FwdIt first,FwdIt last,const T& val){
-		if constexpr(!fill_construct_memset_safe_iter<FwdIt,T> && !fill_zero_construct_memset_safe_iter<FwdIt,T>){
+	constexpr void fill_construct(Alloc& alloc,FwdIt first,FwdIt last,const T& val)noexcept((fill_construct_memset_safe_iter<FwdIt,T> || fill_zero_construct_memset_safe_iter<FwdIt,T>) && Uses_default_construct_v<Alloc,decltype(unfancy(first++)),const T&>){
+		if constexpr(!((fill_construct_memset_safe_iter<FwdIt,T> || fill_zero_construct_memset_safe_iter<FwdIt,T>) && Uses_default_construct_v<Alloc,decltype(unfancy(first++)),const T&>)){
 			DestroySequenceGuard<Alloc,FwdIt> guard(alloc,first);
 			while(first!=last){
 				allocator_traits<Alloc>::construct(alloc,unfancy(first++),val);
@@ -274,8 +273,8 @@ namespace mpv{
 		}
 	}
 	template<typename Alloc,typename FwdIt>
-	constexpr void default_construct(Alloc& alloc,FwdIt first,FwdIt last){
-		if constexpr(!is_trivially_default_constructible_v<iter_value_t<FwdIt>> || !Uses_default_construct_v<Alloc,decltype(unfancy(first++))>){
+	constexpr void default_construct(Alloc& alloc,FwdIt first,FwdIt last)noexcept(is_trivially_default_constructible_v<iter_value_t<FwdIt>> && Uses_default_construct_v<Alloc,decltype(unfancy(first++))>){
+		if constexpr(!(is_trivially_default_constructible_v<iter_value_t<FwdIt>> && Uses_default_construct_v<Alloc,decltype(unfancy(first++))>)){
 			DestroySequenceGuard<Alloc,FwdIt> guard(alloc,first);
 			while(first!=last){
 				allocator_traits<Alloc>::construct(alloc,unfancy(first++));
@@ -285,14 +284,18 @@ namespace mpv{
 		}
 	}
 	template<typename Alloc,typename FwdIt>
-	constexpr void destroy(Alloc& alloc,FwdIt first,FwdIt last)noexcept(noexcept(first++)){
-		if constexpr(!is_trivially_destructible_v<iter_value_t<FwdIt>> || !Uses_default_destroy_v<Alloc,decltype(unfancy(first++))>){
-			while(first!=last)
+	constexpr void destroy(Alloc& alloc,FwdIt first,FwdIt last)noexcept(is_trivially_destructible_v<iter_value_t<FwdIt>> && Uses_default_destroy_v<Alloc,decltype(unfancy(first++))>){
+		if constexpr(!(is_trivially_destructible_v<iter_value_t<FwdIt>> && Uses_default_destroy_v<Alloc,decltype(unfancy(first++))>)){
+			if constexpr(is_random_access_iterator_v<FwdIt>){
+				while(first!=last)
+					allocator_traits<Alloc>::destroy(alloc,unfancy(--last));
+			}
+			else while(first!=last)
 				allocator_traits<Alloc>::destroy(alloc,unfancy(first++));
 		}
 	}
 	template<typename OutIt,typename InIt,typename Size>
-	constexpr void copy_n(OutIt dest,InIt first,Size size){
+	constexpr void copy_n(OutIt dest,InIt first,Size size)noexcept(is_bitcopy_assignable_iter_v<InIt,OutIt>){
 		if constexpr(!is_bitcopy_assignable_iter_v<InIt,OutIt>){
 			if(size>0){
 				while(true){// Avoids extra increment whith single pass imput iterators. This is not an issue in copy_backward_n and copy_reverse_n because they only accept bidirectional iterators
@@ -307,7 +310,7 @@ namespace mpv{
 		}
 	}
 	template<typename BidIt1,typename BidIt2,typename Size>
-	constexpr void copy_backward_n(BidIt1 destlast,BidIt2 last,Size size){
+	constexpr void copy_backward_n(BidIt1 destlast,BidIt2 last,Size size)noexcept(is_bitcopy_assignable_iter_v<BidIt2,BidIt1>){
 		if constexpr(!is_bitcopy_assignable_iter_v<BidIt2,BidIt1>){
 			while(size--)
 				*(--destlast)=*(--last);
@@ -317,7 +320,7 @@ namespace mpv{
 		}
 	}
 	template<typename BidIt1,typename BidIt2,typename Size>
-	constexpr void copy_reverse_n(BidIt1 dest,BidIt2 first,Size size){
+	constexpr void copy_reverse_n(BidIt1 dest,BidIt2 first,Size size)noexcept(is_bitcopy_assignable_iter_v<BidIt2,BidIt1>){
 		if constexpr(!is_bitcopy_assignable_iter_v<BidIt2,BidIt1>){
 			advance(dest,size);
 			advance(first,size);
@@ -329,7 +332,7 @@ namespace mpv{
 		}
 	}
 	template<typename RandIt1,typename RandIt2,typename Size>
-	constexpr void copy_overlap_n(RandIt1 dest,RandIt2 first,Size size){
+	constexpr void copy_overlap_n(RandIt1 dest,RandIt2 first,Size size)noexcept(is_bitcopy_assignable_iter_v<RandIt2,RandIt1>){
 		if constexpr(!is_bitcopy_assignable_iter_v<RandIt2,RandIt1>){
 			if(first>=dest){
 				while(size--)
@@ -343,11 +346,11 @@ namespace mpv{
 			}
 		}
 		else{
-			copy_trivial(unfancy(dest),unfancy(first),size);
+			copy_trivial_overlap(unfancy(dest),unfancy(first),size);
 		}
 	}
 	template<typename OutIt,typename InIt,typename Size>
-	constexpr void move_n(OutIt dest,InIt first,Size size){
+	constexpr void move_n(OutIt dest,InIt first,Size size)noexcept(is_bitcopy_move_assignable_iter_v<InIt,OutIt>){
 		if constexpr(!is_bitcopy_move_assignable_iter_v<InIt,OutIt>){
 			if(size>0){
 				while(true){// Avoids extra increment whith single pass imput iterators. This is not an issue in move_backward_n and move_reverse_n because they only accept bidirectional iterators
@@ -362,7 +365,7 @@ namespace mpv{
 		}
 	}
 	template<typename BidIt1,typename BidIt2,typename Size>
-	constexpr void move_backward_n(BidIt1 destlast,BidIt2 last,Size size){
+	constexpr void move_backward_n(BidIt1 destlast,BidIt2 last,Size size)noexcept(is_bitcopy_move_assignable_iter_v<BidIt2,BidIt1>){
 		if constexpr(!is_bitcopy_move_assignable_iter_v<BidIt2,BidIt1>){
 			while(size--)
 				*(--destlast)=mpv::move(*(--last));
@@ -372,7 +375,7 @@ namespace mpv{
 		}
 	}
 	template<typename BidIt1,typename BidIt2,typename Size>
-	constexpr void move_reverse_n(BidIt1 dest,BidIt2 first,Size size){
+	constexpr void move_reverse_n(BidIt1 dest,BidIt2 first,Size size)noexcept(is_bitcopy_move_assignable_iter_v<BidIt2,BidIt1>){
 		if constexpr(!is_bitcopy_move_assignable_iter_v<BidIt2,BidIt1>){
 			advance(dest,size);
 			advance(first,size);
@@ -384,8 +387,8 @@ namespace mpv{
 		}
 	}
 	template<typename FwdIt,typename Size,typename T>
-	constexpr void fill_n(FwdIt first,Size size,const T& val){
-		if constexpr(!fill_memset_safe_iter<FwdIt,T> && !fill_zero_memset_safe_iter<FwdIt,T>){
+	constexpr void fill_n(FwdIt first,Size size,const T& val)noexcept(fill_memset_safe_iter<FwdIt,T> || fill_zero_memset_safe_iter<FwdIt,T>){
+		if constexpr(!(fill_memset_safe_iter<FwdIt,T> || fill_zero_memset_safe_iter<FwdIt,T>)){
 			while(size--)
 				*(first++)=val;
 		}
@@ -394,8 +397,8 @@ namespace mpv{
 		}
 	}
 	template<typename Alloc,typename OutIt,typename InIt,typename Size>
-	constexpr void copy_construct_n(Alloc& alloc,OutIt dest,InIt first,Size size){
-		if constexpr(!is_bitcopy_constructible_iter_v<InIt,OutIt>){
+	constexpr void copy_construct_n(Alloc& alloc,OutIt dest,InIt first,Size size)noexcept(is_bitcopy_constructible_iter_v<InIt,OutIt> && Uses_default_construct_v<Alloc,decltype(unfancy(dest++)),decltype(*(first))>){
+		if constexpr(!(is_bitcopy_constructible_iter_v<InIt,OutIt> && Uses_default_construct_v<Alloc,decltype(unfancy(dest++)),decltype(*(first))>)){
 			if(size>0){
 				DestroySequenceGuard<Alloc,OutIt> guard(alloc,dest);
 				while(true){
@@ -412,8 +415,8 @@ namespace mpv{
 		}
 	}
 	template<typename Alloc,typename OutIt,typename InIt,typename Size>
-	constexpr void move_construct_n(Alloc& alloc,OutIt dest,InIt first,Size size){
-		if constexpr(!is_bitcopy_move_constructible_iter_v<InIt,OutIt>){
+	constexpr void move_construct_n(Alloc& alloc,OutIt dest,InIt first,Size size)noexcept(is_bitcopy_move_constructible_iter_v<InIt,OutIt> && Uses_default_construct_v<Alloc,decltype(unfancy(dest++)),decltype(mpv::move(*(first)))>){
+		if constexpr(!(is_bitcopy_move_constructible_iter_v<InIt,OutIt> && Uses_default_construct_v<Alloc,decltype(unfancy(dest++)),decltype(mpv::move(*(first)))>)){
 			if(size>0){
 				DestroySequenceGuard<Alloc,OutIt> guard(alloc,dest);
 				while(true){
@@ -430,8 +433,8 @@ namespace mpv{
 		}
 	}
 	template<typename Alloc,typename OutIt,typename InIt,typename Size>
-	constexpr void move_construct_if_nt_n(Alloc& alloc,OutIt dest,InIt first,Size size){
-		if constexpr(!is_bitcopy_move_constructible_iter_v<InIt,OutIt>){
+	constexpr void move_construct_if_nt_n(Alloc& alloc,OutIt dest,InIt first,Size size)noexcept(is_bitcopy_move_constructible_iter_v<InIt,OutIt> && Uses_default_construct_v<Alloc,decltype(unfancy(dest++)),decltype(mpv::move_if_noexcept(*(first)))>){
+		if constexpr(!(is_bitcopy_move_constructible_iter_v<InIt,OutIt> && Uses_default_construct_v<Alloc,decltype(unfancy(dest++)),decltype(mpv::move_if_noexcept(*(first)))>)){
 			if(size>0){
 				DestroySequenceGuard<Alloc,OutIt> guard(alloc,dest);
 				while(true){
@@ -448,8 +451,8 @@ namespace mpv{
 		}
 	}
 	template<typename Alloc,typename FwdIt,typename T,typename Size>
-	constexpr void fill_construct_n(Alloc& alloc,FwdIt first,Size size,const T& val){
-		if constexpr(!fill_construct_memset_safe_iter<FwdIt,T> && !fill_zero_construct_memset_safe_iter<FwdIt,T>){
+	constexpr void fill_construct_n(Alloc& alloc,FwdIt first,Size size,const T& val)noexcept((fill_construct_memset_safe_iter<FwdIt,T> || fill_zero_construct_memset_safe_iter<FwdIt,T>) && Uses_default_construct_v<Alloc,decltype(unfancy(first++)),const T&>){
+		if constexpr(!((fill_construct_memset_safe_iter<FwdIt,T> || fill_zero_construct_memset_safe_iter<FwdIt,T>) && Uses_default_construct_v<Alloc,decltype(unfancy(first++)),const T&>)){
 			DestroySequenceGuard<Alloc,FwdIt> guard(alloc,first);
 			while(size--){
 				allocator_traits<Alloc>::construct(alloc,unfancy(first++),val);
@@ -462,8 +465,8 @@ namespace mpv{
 		}
 	}
 	template<typename Alloc,typename FwdIt,typename Size>
-	constexpr void default_construct_n(Alloc& alloc,FwdIt first,Size size){
-		if constexpr(!is_trivially_default_constructible_v<iter_value_t<FwdIt>> || !Uses_default_construct_v<Alloc,decltype(unfancy(first++))>){
+	constexpr void default_construct_n(Alloc& alloc,FwdIt first,Size size)noexcept(is_trivially_default_constructible_v<iter_value_t<FwdIt>> && Uses_default_construct_v<Alloc,decltype(unfancy(first++))>){
+		if constexpr(!(is_trivially_default_constructible_v<iter_value_t<FwdIt>> && Uses_default_construct_v<Alloc,decltype(unfancy(first++))>)){
 			DestroySequenceGuard<Alloc,FwdIt> guard(alloc,first);
 			while(size--){
 				allocator_traits<Alloc>::construct(alloc,unfancy(first++));
@@ -473,14 +476,19 @@ namespace mpv{
 		}
 	}
 	template<typename Alloc,typename FwdIt,typename Size>
-	constexpr void destroy_n(Alloc& alloc,FwdIt first,Size size)noexcept(noexcept(first++)){
-		if constexpr(!is_trivially_destructible_v<iter_value_t<FwdIt>> || !Uses_default_destroy_v<Alloc,decltype(unfancy(first++))>){
-			while(size--)
+	constexpr void destroy_n(Alloc& alloc,FwdIt first,Size size)noexcept(is_trivially_destructible_v<iter_value_t<FwdIt>> && Uses_default_destroy_v<Alloc,decltype(unfancy(first++))>){
+		if constexpr(!(is_trivially_destructible_v<iter_value_t<FwdIt>> && Uses_default_destroy_v<Alloc,decltype(unfancy(first++))>)){
+			if constexpr(is_random_access_iterator_v<FwdIt>){
+				first+=size;
+				while(size--)
+					allocator_traits<Alloc>::destroy(alloc,unfancy(--first));
+			}
+			else while(size--)
 				allocator_traits<Alloc>::destroy(alloc,unfancy(first++));
 		}
 	}
 	template<typename InIt1,typename InIt2,typename Pred=equal_to<>>
-	constexpr bool equal(InIt1 first,InIt1 last,InIt2 first2,Pred pred=Pred{}){
+	constexpr bool equal(InIt1 first,InIt1 last,InIt2 first2,Pred pred=Pred{})noexcept(equal_memcmp_is_safe_iter<InIt1,InIt2,Pred>){
 		if constexpr(!equal_memcmp_is_safe_iter<InIt1,InIt2,Pred>){
 			while(first!=last){
 				if(!pred(*first++,*first2++)) return false;
@@ -507,7 +515,7 @@ namespace mpv{
 		}
 	}
 	template<typename InIt1,typename InIt2,typename Size,typename Pred=equal_to<>>
-	constexpr bool equal_n(InIt1 first,InIt2 first2,Size size,Pred pred=Pred{}){
+	constexpr bool equal_n(InIt1 first,InIt2 first2,Size size,Pred pred=Pred{})noexcept(equal_memcmp_is_safe_iter<InIt1,InIt2,Pred> || noexcept(pred(*first++,*first2++))){
 		if constexpr(!equal_memcmp_is_safe_iter<InIt1,InIt2,Pred>){
 			while(size--){
 				if(!pred(*first++,*first2++)) return false;
@@ -537,13 +545,13 @@ namespace mpv{
 		}
 	}
 	template<typename BidIt>
-	constexpr void reverse(BidIt first,BidIt last){
+	constexpr void reverse(BidIt first,BidIt last)noexcept(noexcept(fake_copy_init<bool>(first!=last) && fake_copy_init<bool>(first!=--last)) && noexcept(swap(*(first++),*last))){
 		while(first!=last && first!=--last){
 			swap(*(first++),*last);
 		}
 	}
 	template<typename FwdIt,typename T>
-	constexpr FwdIt find(FwdIt first,FwdIt last,const T& val){
+	constexpr FwdIt find(FwdIt first,FwdIt last,const T& val)noexcept(noexcept(fake_copy_init<bool>(first!=last)) && noexcept(fake_copy_init<bool>(*first==val)) && noexcept(first++) && is_nothrow_copy_move_constructible_v<FwdIt>){
 		while(first!=last){
 			if(*first==val) break;
 			first++;
@@ -551,7 +559,7 @@ namespace mpv{
 		return first;
 	}
 	template<typename FwdIt,typename T,typename Size=size_t>
-	constexpr Size count(FwdIt first,FwdIt last,const T& val){
+	constexpr Size count(FwdIt first,FwdIt last,const T& val)noexcept(noexcept(fake_copy_init<bool>(first!=last)) && noexcept(fake_copy_init<bool>(*first==val)) && noexcept(first++)){
 		Size found=0;
 		while(first!=last){
 			if(*first==val) ++found;
@@ -560,7 +568,7 @@ namespace mpv{
 		return found;
 	}
 	template<typename FwdIt,typename T>
-	constexpr bool contains(FwdIt first,FwdIt last,const T& val){
+	constexpr bool contains(FwdIt first,FwdIt last,const T& val)noexcept(noexcept(fake_copy_init<bool>(first!=last)) && noexcept(fake_copy_init<bool>(*first==val)) && noexcept(first++)){
 		while(first!=last){
 			if(*first==val) return true;
 			first++;
@@ -568,21 +576,21 @@ namespace mpv{
 		return false;
 	}
 	template<typename RanIt,typename T,typename Cmp=less<T>>
-	constexpr RanIt binary_search(RanIt first,RanIt last,const T& val,Cmp&& cmp=Cmp{}){
-		RanIt end=last-1;
-		while(end>=first){
+	constexpr RanIt binary_search(RanIt first,RanIt last,const T& val,Cmp&& cmp=Cmp{})noexcept(noexcept(fake_copy_init<bool>(cmp(*first,val)))&& noexcept(fake_copy_init<bool>(cmp(val,*first))) && noexcept(first<last) && noexcept(first=last) && noexcept(first=last+1) && noexcept(RanIt(first+(last-first)/2)) && is_nothrow_copy_constructible_v<RanIt> && is_nothrow_move_constructible_v<RanIt>){//devuelve last si el elemento no esta
+		RanIt end=last;
+		while(first<end){
 			RanIt index=first+(end-first)/2;
 			if(cmp(*index,val))
 				first=index+1;
 			else if(cmp(val,*index))
-				end=index-1;
+				end=index;
 			else
 				return index;
 		}
 		return last;
 	}
 	template<typename FwdIt,typename T,typename Size=size_t>
-	constexpr Size index_of(FwdIt first,FwdIt last,const T& val){ 
+	constexpr Size index_of(FwdIt first,FwdIt last,const T& val)noexcept(noexcept(fake_copy_init<bool>(first!=last)) && noexcept(fake_copy_init<bool>(*first==val)) && noexcept(first++)){ 
 		Size index=0;
 		while(first!=last){
 			if(*first==val) return index;
@@ -592,7 +600,7 @@ namespace mpv{
 		return index;//One past the last element if val is not found
 	}
 	template<typename FwdIt>
-	constexpr void rotate(FwdIt first,FwdIt mid,FwdIt last){
+	constexpr void rotate(FwdIt first,FwdIt mid,FwdIt last)noexcept(noexcept(mid==last) && noexcept(first!=mid) && noexcept(swap(*first++,*mid++)) && mpv::is_nothrow_copy_constructible_v<FwdIt> && mpv::is_nothrow_copy_assignable_v<FwdIt>){
 		if(mid==last) return;
 		FwdIt next=mid;
 		while(first!=next){
@@ -603,7 +611,7 @@ namespace mpv{
 	}
 
 	template<typename OutIt,typename InIt,typename Size>
-	constexpr void advance_copy_n(OutIt dest,InIt& first,Size size){
+	constexpr void advance_copy_n(OutIt dest,InIt& first,Size size)noexcept(is_bitcopy_assignable_iter_v<InIt,OutIt> || noexcept(*(dest++)=*(first++))){
 		if constexpr(!is_bitcopy_assignable_iter_v<InIt,OutIt>){
 			while(size--)
 				*(dest++)=*(first++);
@@ -614,8 +622,8 @@ namespace mpv{
 		}
 	}
 	template<typename OutIt,typename InIt,typename Size>
-	constexpr void advance_move_n(OutIt dest,InIt& first,Size size){
-		if constexpr(!is_bitcopy_assignable_iter_v<InIt,OutIt>){
+	constexpr void advance_move_n(OutIt dest,InIt& first,Size size)noexcept(is_bitcopy_move_assignable_iter_v<InIt,OutIt> || noexcept(*(dest++)=mpv::move(*(first++)))){
+		if constexpr(!is_bitcopy_move_assignable_iter_v<InIt,OutIt>){
 			while(size--)
 				*(dest++)=mpv::move(*(first++));
 		}
@@ -640,10 +648,11 @@ namespace mpv{
 		BidIt current_i=first,current_j=first;
 		for(++current_i;current_i!=last;++current_i){
 			iter_value_t<BidIt> aux=mpv::move(*current_i);
-			for(current_j=current_i;current_j!=first && pred(aux,*(--BidIt(current_j)));--current_j){
-				*current_j=mpv::move(*(--BidIt(current_j)));
+			BidIt prev_j=current_j=current_i;
+			while(prev_j!=first && pred(aux,*(--current_j))){
+				*(prev_j--)=mpv::move(*current_j);
 			}
-			*current_j=mpv::move(aux);
+			*prev_j=mpv::move(aux);
 		}
 	}
 }

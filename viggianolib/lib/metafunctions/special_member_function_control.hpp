@@ -3,7 +3,7 @@ namespace mpv{
     template<typename T> struct non_trivial_copy_ctor:T{
         using T::T;
         non_trivial_copy_ctor()=default;
-        constexpr non_trivial_copy_ctor(const non_trivial_copy_ctor& other)noexcept(noexcept(this->construct(static_cast<const T&>(other)))){
+        constexpr non_trivial_copy_ctor(const non_trivial_copy_ctor& other)noexcept(noexcept(this->construct(static_cast<const T&>(other))) && is_nothrow_default_constructible_v<T>){
             T::construct(static_cast<const T&>(other));// T debe tener un metodo llamado construct para que esto funcione
         }
         non_trivial_copy_ctor(non_trivial_copy_ctor&&)=default;
@@ -33,7 +33,7 @@ namespace mpv{
         using base_type::base_type;
         non_trivial_move_ctor()=default;
         non_trivial_move_ctor(const non_trivial_move_ctor&)=default;
-        constexpr non_trivial_move_ctor(non_trivial_move_ctor&& other)noexcept(noexcept(this->construct(static_cast<T&&>(other)))){
+        constexpr non_trivial_move_ctor(non_trivial_move_ctor&& other)noexcept(noexcept(this->construct(static_cast<T&&>(other))) && is_nothrow_default_constructible_v<base_type>){
             base_type::construct(static_cast<T&&>(other));
         }
         non_trivial_move_ctor& operator=(const non_trivial_move_ctor&)=default;
@@ -122,4 +122,5 @@ namespace mpv{
         >
     >;
     template<typename T,typename... Args> using smf_control=smf_control_move_assign<T,Args...>;
+    // Hereda en T los constructores y operadores de copia y movimiento de Args...
 }

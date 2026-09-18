@@ -1,5 +1,120 @@
 #pragma once
 namespace mpv{
+	template<typename Container>
+	class Viewer{
+		private:
+			Container& cont;
+		public:
+		using value_type=typename Container::value_type;
+		using size_type=typename Container::size_type;
+		using difference_type=typename Container::difference_type;
+		using pointer=typename Container::pointer;
+		using const_pointer=typename Container::const_pointer;
+		using reference=typename Container::reference;
+		using const_reference=typename Container::const_reference;
+		using iterator=typename Container::iterator;
+		using const_iterator=typename Container::const_iterator;
+		constexpr Viewer(Container& cont):cont(cont){};
+		constexpr const Container& get_container()const noexcept{ return cont; }
+		constexpr size_type size()const noexcept{
+			return cont.size();
+		}
+		constexpr bool empty()const noexcept{
+			return cont.empty();
+		}
+		constexpr const_iterator find(const value_type& val)const{
+			return mpv::find(begin(),end(),val);
+		}
+		constexpr iterator find(const value_type& val){
+			return mpv::find(begin(),end(),val);
+		}
+		constexpr size_type count(const value_type& val)const{
+			return mpv::count<const_iterator,value_type,size_type>(begin(),end(),val);
+		}
+		constexpr bool contains(const value_type& val)const{
+			return mpv::contains<const_iterator,value_type>(begin(),end(),val);
+		}
+		constexpr size_type index_of(const value_type& val)const{
+			return mpv::index_of<const_iterator,value_type,size_type>(begin(),end(),val);
+		}
+		template<typename Lambda>
+		constexpr bool any(Lambda&& func=Lambda{})const{
+			for(const_reference x:cont)
+				if(func(x))return true;
+			return false;
+		}
+		template<typename Lambda>
+		constexpr void foreach(Lambda&& func=Lambda{})const{
+			cont.foreach(static_cast<Lambda&&>(func));
+		}
+		template<typename Lambda>
+		constexpr void foreach(Lambda&& func=Lambda{}){
+			cont.foreach(static_cast<Lambda&&>(func));
+		}
+		constexpr iterator begin()noexcept{
+			return cont.begin();
+		}
+		constexpr iterator end()noexcept{
+			return cont.end();
+		}
+		constexpr const_iterator begin()const noexcept{
+			return cont.begin();
+		}
+		constexpr const_iterator end()const noexcept{
+			return cont.end();
+		}
+	};
+	template<typename Container>
+	class ConstViewer{
+		private:
+			const Container& cont;
+		public:
+		using value_type=typename Container::value_type;
+		using size_type=typename Container::size_type;
+		using difference_type=typename Container::difference_type;
+		using pointer=typename Container::const_pointer;
+		using const_pointer=typename Container::const_pointer;
+		using reference=typename Container::const_reference;
+		using const_reference=typename Container::const_reference;
+		using iterator=typename Container::const_iterator;
+		using const_iterator=typename Container::const_iterator;
+		constexpr ConstViewer(const Container& cont):cont(cont){};
+		constexpr const Container& get_container()const noexcept{ return cont; }
+		constexpr size_type size()const noexcept{
+			return cont.size();
+		}
+		constexpr bool empty()const noexcept{
+			return cont.empty();
+		}
+		constexpr const_iterator find(const value_type& val)const{
+			return mpv::find(begin(),end(),val);
+		}
+		constexpr size_type count(const value_type& val)const{
+			return mpv::count<const_iterator,value_type,size_type>(begin(),end(),val);
+		}
+		constexpr bool contains(const value_type& val)const{
+			return mpv::contains<const_iterator,value_type>(begin(),end(),val);
+		}
+		constexpr size_type index_of(const value_type& val)const{
+			return mpv::index_of<const_iterator,value_type,size_type>(begin(),end(),val);
+		}
+		template<typename Lambda>
+		constexpr bool any(Lambda&& func=Lambda{})const{
+			for(const_reference x:cont)
+				if(func(x))return true;
+			return false;
+		}
+		template<typename Lambda>
+		constexpr void foreach(Lambda&& func=Lambda{})const{
+			cont.foreach(static_cast<Lambda&&>(func));
+		}
+		constexpr const_iterator begin()const noexcept{
+			return cont.begin();
+		}
+		constexpr const_iterator end()const noexcept{
+			return cont.end();
+		}
+	};
 	struct Fibonacci{
 		size_t count,max;
 		constexpr Fibonacci(size_t max)noexcept:count(0),max{max}{}

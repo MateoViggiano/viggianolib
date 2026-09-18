@@ -746,6 +746,9 @@ namespace mpv{
     template<typename T> struct is_nothrow_move_constructible:is_nothrow_move_constructible_impl<T>{};
     template<typename T> constexpr bool is_nothrow_move_constructible_v=is_nothrow_move_constructible<T>::value;
 
+    template<typename T> constexpr bool is_nothrow_copy_move_constructible_v=is_nothrow_copy_constructible_v<T> && is_nothrow_move_constructible_v<T>;
+    template<typename T> struct is_nothrow_copy_move_constructible:bool_constant<is_nothrow_copy_move_constructible_v<T>>{};
+
     template<typename T,typename U> struct is_nothrow_assignable:conjunction<is_assignable<T,U>,bool_constant<noexcept(declval<T>()=declval<U>())>>{};
     template<typename T,typename U> constexpr bool is_nothrow_assignable_v=is_nothrow_assignable<T,U>::value;
 
@@ -760,6 +763,9 @@ namespace mpv{
     template<typename T> struct is_nt_move_assignable_impl<T,true>:is_nothrow_assignable<T&,T&&>{};
     template<typename T> struct is_nothrow_move_assignable:is_nt_move_assignable_impl<T>{};
     template<typename T> constexpr bool is_nothrow_move_assignable_v=is_nothrow_move_assignable<T>::value;
+
+    template<typename T> constexpr bool is_nothrow_copy_move_assignable_v=is_nothrow_copy_assignable_v<T> && is_nothrow_move_assignable_v<T>;
+    template<typename T> struct is_nothrow_copy_move_assignable:bool_constant<is_nothrow_copy_move_assignable_v<T>>{};
 
     template<typename T> struct is_swappable;
     template<typename T> struct is_nothrow_swappable;
