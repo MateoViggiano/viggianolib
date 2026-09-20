@@ -125,4 +125,32 @@ namespace mpv{
 			if(cont) cont->clear();
 		}
 	};
+	template<typename Cont>
+	struct FreeStorageGuard{
+		Cont* cont;
+		FreeStorageGuard(Cont& cont)noexcept:cont(mpv::addressof(cont)){}
+		~FreeStorageGuard(){
+			if(cont) cont->free_storage();
+		}
+	};
+	template<typename Alloc>
+	struct RecoverAllocGuard_pocca{
+		Alloc* al;
+		Alloc al_copy;
+		RecoverAllocGuard_pocca(Alloc& al)noexcept:al(mpv::addressof(al)),al_copy(al){}
+		~RecoverAllocGuard_pocca(){
+			if(al!=nullptr)
+				pocca(*al,al_copy);
+		}
+	};
+	template<typename Alloc>
+	struct RecoverAllocGuard_pocma{
+		Alloc* al;
+		Alloc al_copy;
+		RecoverAllocGuard_pocma(Alloc& al)noexcept:al(mpv::addressof(al)),al_copy(al){}
+		~RecoverAllocGuard_pocma(){
+			if(al!=nullptr)
+				pocma(*al,al_copy);
+		}
+	};
 }

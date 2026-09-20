@@ -109,7 +109,8 @@ namespace mpv{
 		public:
 			constexpr const_HoleIterator()noexcept=default;
 			constexpr const_HoleIterator(const HoleIterator<Types>& nonconst_it)noexcept:vecptr(nonconst_it.vecptr),it(nonconst_it.it){
-				while(it<vecptr->end() && !it->has_value()) ++it;
+				if(vecptr!=nullptr)
+					while(it<vecptr->end() && !it->has_value()) ++it;
 			}
 			constexpr const_HoleIterator(const vector_optional* vecptr,Ptr iter)noexcept:vecptr(vecptr),it(iter){
 				while(it<vecptr->end() && !it->has_value()) ++it;
@@ -204,21 +205,31 @@ namespace mpv{
 			constexpr HoleVector(const HoleVector& other) = default;
 			constexpr HoleVector(HoleVector&& other)noexcept(is_nothrow_move_constructible_v<OptVec> && is_nothrow_move_constructible_v<StackVec>) = default;
 			constexpr HoleVector& operator=(const HoleVector& other){
-				ClearGuard cg1(vec);
-				ClearGuard cg2(hole_stack);
+				if(this==&other) return *this;
+				RecoverAllocGuard_pocca alguard1(vec.cp.getV1());
+				RecoverAllocGuard_pocca alguard2(hole_stack.cp.getV1());
+				FreeStorageGuard fsg1(vec);
+				FreeStorageGuard fsg2(hole_stack);
 				this->vec=other.vec;
 				this->hole_stack=other.hole_stack;
-				cg1.cont=nullptr;
-				cg2.cont=nullptr;
+				alguard1.al=nullptr;
+				alguard2.al=nullptr;
+				fsg1.cont=nullptr;
+				fsg2.cont=nullptr;
 				return *this;
 			}
 			constexpr HoleVector& operator=(HoleVector&& other)noexcept(noexcept(vec=static_cast<OptVec&&>(other.vec)) && noexcept(hole_stack=static_cast<StackVec&&>(other.hole_stack))){
-				ClearGuard cg1(vec);
-				ClearGuard cg2(hole_stack);
+				if(this==&other) return *this;
+				RecoverAllocGuard_pocma alguard1(vec.cp.getV1());
+				RecoverAllocGuard_pocma alguard2(hole_stack.cp.getV1());
+				FreeStorageGuard fsg1(vec);
+				FreeStorageGuard fsg2(hole_stack);
 				this->vec=static_cast<OptVec&&>(other.vec);
 				this->hole_stack=static_cast<StackVec&&>(other.hole_stack);
-				cg1.cont=nullptr;
-				cg2.cont=nullptr;
+				alguard1.al=nullptr;
+				alguard2.al=nullptr;
+				fsg1.cont=nullptr;
+				fsg2.cont=nullptr;
 				return *this;
 			}
 
@@ -226,21 +237,28 @@ namespace mpv{
             constexpr HoleVector(It first,It last,const Alloc& al=Alloc{}):vec(first,last,al),hole_stack(al){}
             constexpr HoleVector(std::initializer_list<value_type> initlist,const Alloc& al=Alloc()):vec(initlist.begin(),initlist.end(),al),hole_stack(al){}
 			constexpr void copy_dist(const HoleVector& other){
-				vec.clear();
-				ClearGuard cg1(vec);
-				ClearGuard cg2(hole_stack);
-				hole_stack=other.hole_stack;
-				vec.resize(other.vec.size());
-				for(const_iterator it=--other.end();it>=other.begin();--it){
-					hole_stack.push_back(it.get_raw_index());
+				if(this==&other){
+					for(const_iterator it=other.end();it>other.begin();)
+						del(--it);
 				}
-				cg1.cont=nullptr;
-				cg2.cont=nullptr;
+				else{
+					vec.clear();
+					ClearGuard cg1(vec);
+					ClearGuard cg2(hole_stack);
+					hole_stack.resize(other.hole_stack.size());
+					mpv::copy(this->hole_stack.begin(),other.hole_stack.begin(),other.hole_stack.end());
+					vec.resize(other.vec.size());
+					for(const_iterator it=other.end();it>other.begin();){
+						hole_stack.push_back((--it).get_raw_index());
+					}
+					cg1.cont=nullptr;
+					cg2.cont=nullptr;					
+				}
 			}
 			template<typename... Args>
 			constexpr iterator emplace(Args&&... args){
 				if(hole_stack.empty()){
-					vec.emplace_back(value_type(static_cast<Args&&>(args)...));
+					vec.emplace_back(in_place_t{},static_cast<Args&&>(args)...);
 					return iterator(&vec,vec.end()-1);
 				}
 				else{

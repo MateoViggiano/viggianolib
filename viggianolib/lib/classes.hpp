@@ -186,5 +186,6 @@ namespace mpv{
 //#include"Classes/BitList.hpp"
 #include"Classes/Array.hpp"
 #include"Classes/Matrix.hpp"
+#include"Classes/Graph.hpp"
 #include"Classes/StackBasedStateMachine.hpp"
 //#include"Classes/BigInt.hpp"
