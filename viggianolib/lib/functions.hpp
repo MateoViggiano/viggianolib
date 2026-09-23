@@ -176,10 +176,10 @@ namespace mpv{
 		else for(typename Cont::size_type j=i;j<vec.size();j++){
 			sol[i]=vec[j];
 // vec[j] ya fue usado, entonces lo 'escondo' en la posicion i y ademas dejo vec[i] en la posicion j que esta en rango para que la siguiente llamada lo pueda usar
-			swap(vec[i],vec[j]);
-			permutaciones_rec(vec,i+1,sol,sols);// y hago recursion en i+1
-			swap(vec[i],vec[j]);// lo deshago para que el vector quede igual
-		}
+			swap(vec[i],vec[j]);//							 ^ la cual no se va a usar en la proxima recursion
+			permutaciones_rec(vec,i+1,sol,sols);// y hago recursion en i+1																				todo esto es cuando i!=j, en el caso de 
+			swap(vec[i],vec[j]);// lo deshago para que el vector quede igual																		  i==j (la primera iteracion) vec[i] se hace un 
+		}//																																			auto swap y queda atras en la proxima llamada recursiva
 	}
 	template<template<typename,typename...> class Cont,typename T,typename... Args>
 	rebind_t<Cont<T,Args...>,Cont<T,Args...>> generate_permutations(Cont<T,Args...> cont){
