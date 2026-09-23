@@ -15,6 +15,7 @@
 	typedef int ptrdiff_t;
 #endif
 typedef size_t uintptr_t;
+typedef ssize_t intptr_t;
 
 #include "initializer_list"
 #if (defined(_ATOMIC_) || defined(_GLIBCXX_ATOMIC)) && !defined(DISABLE_ATOMIC)

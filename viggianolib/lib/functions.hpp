@@ -2,6 +2,30 @@
 
 namespace mpv{
 	template<typename T>
+	constexpr const T& max(const T& x)noexcept{
+		return x;
+	}
+	template<typename T>
+	constexpr const T& max(const T& x,const T& y)noexcept(noexcept(x>y)){
+		return x>y?x:y;
+	}
+	template<typename T,typename... Args>
+	constexpr const T& max(const T& x,const T& y,const Args&... args)noexcept(noexcept(x>y)){
+		return max(x,max(y,args...));
+	}
+	template<typename T>
+	constexpr const T& min(const T& x)noexcept{
+		return x;
+	}
+	template<typename T>
+	constexpr const T& min(const T& x,const T& y)noexcept(noexcept(x<y)){
+		return x<y?x:y;
+	}
+	template<typename T,typename... Args>
+	constexpr const T& min(const T& x,const T& y,const Args&... args)noexcept(noexcept(x<y)){
+		return min(x,min(y,args...));
+	}
+	template<typename T>
 	constexpr enable_if_t<is_scalar_v<T>,bool> is_all_bits_zero(const T& val)noexcept{
 		constexpr T zero{};
 		if constexpr(USE_MEMCPY){
@@ -144,6 +168,27 @@ namespace mpv{
 			}
 		}
 	}
+	template<typename Cont,typename Cont2>
+	void permutaciones_rec(Cont& vec,typename Cont::size_type i,Cont& sol,Cont2& sols){
+		if(i==sol.size()){
+			sols.push_back(sol);
+		}
+		else for(typename Cont::size_type j=i;j<vec.size();j++){
+			sol[i]=vec[j];
+// vec[j] ya fue usado, entonces lo 'escondo' en la posicion i y ademas dejo vec[i] en la posicion j que esta en rango para que la siguiente llamada lo pueda usar
+			swap(vec[i],vec[j]);
+			permutaciones_rec(vec,i+1,sol,sols);// y hago recursion en i+1
+			swap(vec[i],vec[j]);// lo deshago para que el vector quede igual
+		}
+	}
+	template<template<typename,typename...> class Cont,typename T,typename... Args>
+	rebind_t<Cont<T,Args...>,Cont<T,Args...>> generate_permutations(Cont<T,Args...> cont){
+		rebind_t<Cont<T,Args...>,Cont<T,Args...>> sols;
+		Cont<T,Args...> sol(cont.size());
+		permutaciones_rec(cont,typename Cont<T,Args...>::size_type{0},sol,sols);
+		return sols;
+	}
+
     template<typename T>
     constexpr enable_if_t<is_integral_v<T>,T> factorial(T n){
         T res=1;

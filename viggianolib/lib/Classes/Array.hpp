@@ -156,7 +156,7 @@ template<typename T,size_t len>
                 return new_vec;
             }
             template<size_t s=length,typename=enable_if_t<s==3>>
-            constexpr Array<T,3> operator%(const Array<T,3>& other)const{
+            constexpr Array<T,3> operator%(const Array<T,3>& other)const{//producto vectorial
                 Array<T,3> new_array;
                 new_array[0]=(*this)[1]*other[2]-other[1]*(*this)[2];
                 new_array[1]=other[0]*(*this)[2]-(*this)[0]*other[2];

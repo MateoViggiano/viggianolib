@@ -232,6 +232,9 @@ namespace mpv{
 		bool vertex_exist(size_t v)const noexcept{
 			return v<vertexes.get_internal_vector().size() && vertexes.has_value_at(v);
 		}
+		size_t indexable_vertex_range()const noexcept{//no significa que se pueda indexar cualquir posicion en ese rango
+			return vertexes.get_internal_vector().size();//significa que cualquier posicion fuera de ese rango no se puede indexar.
+		}
 		const List<Edge<E>>& get_edges()const noexcept{
 			return edges_list;
 		}
@@ -307,6 +310,23 @@ namespace mpv{
 		ConstViewer<List<Edge<E>>> edge_list()const{
 			return edges_list;
 		}
+	private:
+		template<typename Pred,typename Pre,typename Post>
+		void dfs_rec(size_t v,Pred& pred,Pre& pre,Post& post){
+			pre(v);
+			for(size_t u:this->neighbors(v)){
+				if(pred(u)) dfs_rec(u,pred,pre,post);
+			}
+			post(v);
+		}
+	public:
+		template<typename Pred,typename Pre,typename Post>
+		void dfs(Pred&& pred,Pre&& pre,Post&& post){
+			for(size_t v:*this){
+				if(pred(v))dfs_rec(v,pred,pre,post);
+			}
+		}
+
 		template<typename> friend class Neighbors;
 		template<typename> friend class NeighborValues;
 		template<typename> friend class ConstNeighborValues;

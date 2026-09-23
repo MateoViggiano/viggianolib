@@ -17,6 +17,13 @@ namespace mpv{
             static constexpr size_t rows=R;
             static constexpr size_t columns=C;
             static constexpr size_t length=R*C;
+            constexpr void fill(T val){
+                for(size_t i=0;i<R;i++){
+                    for(size_t j=0;j<C;j++){
+                        (*this)[i][j]=val;
+                    }
+                }
+            }
             constexpr Matrix operator+(const Matrix& other)const{
                 Matrix new_matrix;
                 for(size_t i=0;i<R;i++){
