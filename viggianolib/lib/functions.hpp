@@ -170,7 +170,7 @@ namespace mpv{
 	}
 	template<typename Cont,typename Cont2>
 	void permutaciones_rec(Cont& vec,typename Cont::size_type i,Cont& sol,Cont2& sols){
-		if(i==sol.size()){
+		if(i==vec.size()){
 			sols.push_back(sol);
 		}
 		else for(typename Cont::size_type j=i;j<vec.size();j++){
