@@ -64,7 +64,7 @@ namespace mpv{
     };
     template<typename T>
     class Optional:protected smf_control<optional_base<T>,T>{
-        template<typename U> friend class optional_base;
+        template<typename U> friend struct optional_base;
         using base_type=smf_control<optional_base<T>,T>;
         template<typename U> static constexpr bool allow_unwrapping=is_same_v<remove_cvref_t<T>,bool> ||
             !(is_same_v<T,U> || is_constructible_v<T,Optional<U>&> ||
