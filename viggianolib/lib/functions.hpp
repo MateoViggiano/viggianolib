@@ -181,11 +181,11 @@ namespace mpv{
 			swap(vec[i],vec[j]);// lo deshago para que el vector quede igual																		  i==j (la primera iteracion) vec[i] se hace un 
 		}//																																			auto swap y queda atras en la proxima llamada recursiva
 	}
-	template<template<typename,typename...> class Cont,typename T,typename... Args>
-	rebind_t<Cont<T,Args...>,Cont<T,Args...>> generate_permutations(Cont<T,Args...> cont){
-		rebind_t<Cont<T,Args...>,Cont<T,Args...>> sols;
-		Cont<T,Args...> sol(cont.size());
-		permutaciones_rec(cont,typename Cont<T,Args...>::size_type{0},sol,sols);
+	template<template<typename...> class Cont,typename T,typename Al,typename... Args>
+	rebind_t<Cont<T,Al,Args...>,Cont<T,Al,Args...>,rebind_alloc<Al,Cont<T,Al,Args...>>,Args...> generate_permutations(Cont<T,Al,Args...> cont){
+		rebind_t<Cont<T,Al,Args...>,Cont<T,Al,Args...>,rebind_alloc<Al,Cont<T,Al,Args...>>,Args...> sols;
+		Cont<T,Al,Args...> sol(cont.size());
+		permutaciones_rec(cont,typename Cont<T,Al,Args...>::size_type{0},sol,sols);
 		return sols;
 	}
 

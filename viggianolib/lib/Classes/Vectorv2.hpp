@@ -54,7 +54,7 @@ namespace mpv{
                 pointer array=nullptr;
                 constexpr Guard(AlTy& al):al(al){}
                 constexpr Guard(AlTy& al,size_type max_length):al(al),max_length(max_length),array(max_length>0? AlTy_traits::allocate(al,max_length) : nullptr){}
-                constexpr Guard(AlTy& al,const Vector& v):al(al),max_length(v.length*realloc_factor),array(max_length>0? AlTy_traits::allocate(al,max_length) : nullptr){}
+                constexpr Guard(AlTy& al,const Vector& v):al(al),max_length(v.length),array(max_length>0? AlTy_traits::allocate(al,max_length) : nullptr){}
                 constexpr void transfer_to(Vector& v)noexcept{
                     v.array=this->array;
                     v.maxLen=this->max_length;
@@ -116,7 +116,7 @@ namespace mpv{
             }
             template<typename It>
             constexpr void allocate_and_assign_counted_range(It first,size_type count){// assumes *this has no storage
-                Guard guard(alloc,count*realloc_factor);
+                Guard guard(alloc,count);
                 copy_construct_n(alloc,guard.array,first,count);
                 guard.length=count;
                 guard.transfer_to(*this);
@@ -140,7 +140,7 @@ namespace mpv{
             }
             template<typename It>
             constexpr void allocate_and_move_counted_range(It first,size_type count){// assumes *this has no storage
-                Guard guard(alloc,count*realloc_factor);
+                Guard guard(alloc,count);
                 move_construct_n(alloc,guard.array,first,count);
                 guard.length=count;
                 guard.transfer_to(*this);
@@ -315,19 +315,19 @@ namespace mpv{
                 }
             }
             constexpr explicit Vector(size_type sz){
-                Guard guard(alloc,sz*realloc_factor);
+                Guard guard(alloc,sz);
                 default_construct_n(alloc,guard.array,sz);
                 guard.length=sz;
                 guard.transfer_to(*this);
             }
             constexpr Vector(size_type sz,const Alloc& al):cp(arg1_tag{},al,0){
-                Guard guard(alloc,sz*realloc_factor);
+                Guard guard(alloc,sz);
                 default_construct_n(alloc,guard.array,sz);
                 guard.length=sz;
                 guard.transfer_to(*this);
             }
             constexpr Vector(size_type sz,const T& fillwith,const Alloc& al=Alloc{}):cp(arg1_tag{},al,0){
-                Guard guard(alloc,sz*realloc_factor);
+                Guard guard(alloc,sz);
                 fill_construct_n(alloc,guard.array,sz,fillwith);
                 guard.length=sz;
                 guard.transfer_to(*this);
@@ -371,7 +371,7 @@ namespace mpv{
                 return *this;
             }
             constexpr Vector operator+(const Vector& other)const&{
-                Vector new_vec(reserve_tag{},(this->length+other.length)*realloc_factor,AlTy_traits::select_on_container_copy_construction(alloc));
+                Vector new_vec(reserve_tag{},(this->length+other.length),AlTy_traits::select_on_container_copy_construction(alloc));
                 copy_construct_n(new_vec.alloc,new_vec.array,this->array,this->length);new_vec.length=this->length;
                 copy_construct_n(new_vec.alloc,new_vec.array+this->length,other.array,other.length);new_vec.length+=other.length;
                 return new_vec;
@@ -407,7 +407,7 @@ namespace mpv{
                 return *this;
             }
             constexpr Vector operator*(size_type num)const{
-                Vector new_vec(reserve_tag{},this->length*num*realloc_factor,AlTy_traits::select_on_container_copy_construction(alloc));
+                Vector new_vec(reserve_tag{},this->length*num,AlTy_traits::select_on_container_copy_construction(alloc));
                 for(size_type i=0;i<num;i++){
                     copy_construct_n(new_vec.alloc,new_vec.array+new_vec.length,this->array,this->length);
                     new_vec.length+=this->length;
@@ -418,7 +418,7 @@ namespace mpv{
                 if(num==0) clear();
                 else{
                     if(length*num>this->maxLen){
-                        Guard guard(alloc,length*num*realloc_factor);
+                        Guard guard(alloc,length*num);
                         move_construct_n(this->alloc,guard.array,array,length);
                         guard.length=length;
                         this->destroy_and_free();
@@ -569,7 +569,7 @@ namespace mpv{
             }
             constexpr Vector concat(const_iterator pos,const Vector& other)const{
                 size_type index=pos-begin();
-                Vector new_vec(reserve_tag{},(this->length+other.length)*realloc_factor,AlTy_traits::select_on_container_copy_construction(alloc));
+                Vector new_vec(reserve_tag{},(this->length+other.length),AlTy_traits::select_on_container_copy_construction(alloc));
                 copy_construct_n(new_vec.alloc,new_vec.array,this->array,index);new_vec.length=index;
                 copy_construct_n(new_vec.alloc,new_vec.array+index,other.array,other.length);new_vec.length+=other.length;
                 copy_construct_n(new_vec.alloc,new_vec.array+index+other.length,this->array+index,this->length-index);new_vec.length+=this->length-index;
@@ -579,7 +579,7 @@ namespace mpv{
                 size_type index=pos-begin();
                 Vector new_vec(static_cast<Vector&&>(other));
                 if(this->length+new_vec.length>new_vec.maxLen){
-                    Guard guard(new_vec.alloc,(this->length+new_vec.length)*realloc_factor);
+                    Guard guard(new_vec.alloc,(this->length+new_vec.length));
                     copy_construct_n(guard.al,guard.array,this->array,index);guard.length=index;
                     move_construct_n(guard.al,guard.array+index,new_vec.array,new_vec.length);guard.length+=new_vec.length;
                     copy_construct_n(guard.al,guard.array+index+new_vec.length,this->array+index,this->length-index);guard.length+=this->length-index;
@@ -657,7 +657,7 @@ namespace mpv{
             }
             constexpr void resize(size_type new_len){
                 if(new_len>maxLen){
-                    Guard guard(alloc,new_len*realloc_factor);
+                    Guard guard(alloc,new_len);
                     default_construct_n(alloc,guard.array+length,new_len-length);
                     DestroySequenceGuard tempguard(alloc,guard.array+length,new_len-length);
                     move_construct_if_nt_n(alloc,guard.array,array,length);
