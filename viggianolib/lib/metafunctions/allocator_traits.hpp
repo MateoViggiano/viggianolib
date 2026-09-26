@@ -193,21 +193,21 @@ namespace mpv{
             ~debug_allocator()=default;
             debug_allocator& operator=(const debug_allocator&) = default;
             void deallocate(T* const ptr,const size_t count){
-                DEBUG_PRINT("deallocating %llu bytes\n",count*sizeof(T));
+                PRINTF("deallocating %llu bytes\n",count*sizeof(T));
                 ::operator delete(ptr,count*sizeof(T));
             }
             T* allocate(const size_t count){
-                DEBUG_PRINT("allocating %llu bytes\n",count*sizeof(T));
+                PRINTF("allocating %llu bytes\n",count*sizeof(T));
                 return static_cast<T*>(::operator new(count*sizeof(T)));
             }
             template<typename U,typename... Args>
             void construct(U* const ptr,Args&&... args){
-                DEBUG_PRINT("calling construct\n");
+                PRINTF("calling construct\n");
                 new(const_cast<void*>(static_cast<const volatile void*>(ptr))) U(static_cast<Args&&>(args)...);
             }
             template<typename U>
             void destroy(U* const ptr){
-                DEBUG_PRINT("calling destroy\n");
+                PRINTF("calling destroy\n");
                 ptr->~U();
             }
             size_t max_size()const noexcept{

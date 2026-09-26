@@ -112,7 +112,7 @@ namespace mpv{
 	template<typename T>
 	struct AssignNullGuard{
 		T& ptr;
-		AssignNullGuard(T& ptr)noexcept:ptr(ptr){}
+		constexpr AssignNullGuard(T& ptr)noexcept:ptr(ptr){}
 		~AssignNullGuard()noexcept(noexcept(ptr=nullptr)){
 			ptr=nullptr;
 		}
@@ -120,7 +120,7 @@ namespace mpv{
 	template<typename Cont>
 	struct ClearGuard{
 		Cont* cont;
-		ClearGuard(Cont& cont)noexcept:cont(mpv::addressof(cont)){}
+		constexpr ClearGuard(Cont& cont)noexcept:cont(mpv::addressof(cont)){}
 		~ClearGuard(){
 			if(cont) cont->clear();
 		}
@@ -128,7 +128,7 @@ namespace mpv{
 	template<typename Cont>
 	struct FreeStorageGuard{
 		Cont* cont;
-		FreeStorageGuard(Cont& cont)noexcept:cont(mpv::addressof(cont)){}
+		constexpr FreeStorageGuard(Cont& cont)noexcept:cont(mpv::addressof(cont)){}
 		~FreeStorageGuard(){
 			if(cont) cont->free_storage();
 		}
@@ -137,7 +137,7 @@ namespace mpv{
 	struct RecoverAllocGuard_pocca{
 		Alloc* al;
 		Alloc al_copy;
-		RecoverAllocGuard_pocca(Alloc& al)noexcept:al(mpv::addressof(al)),al_copy(al){}
+		constexpr RecoverAllocGuard_pocca(Alloc& al)noexcept:al(mpv::addressof(al)),al_copy(al){}
 		~RecoverAllocGuard_pocca(){
 			if(al!=nullptr)
 				pocca(*al,al_copy);
@@ -147,7 +147,7 @@ namespace mpv{
 	struct RecoverAllocGuard_pocma{
 		Alloc* al;
 		Alloc al_copy;
-		RecoverAllocGuard_pocma(Alloc& al)noexcept:al(mpv::addressof(al)),al_copy(al){}
+		constexpr RecoverAllocGuard_pocma(Alloc& al)noexcept:al(mpv::addressof(al)),al_copy(al){}
 		~RecoverAllocGuard_pocma(){
 			if(al!=nullptr)
 				pocma(*al,al_copy);

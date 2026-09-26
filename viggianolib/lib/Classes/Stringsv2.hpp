@@ -3,7 +3,7 @@
 #include"../str.hpp"
 namespace mpv{
 	template<typename T=char,typename Alloc=allocator<T>,typename params=params<typename allocator_traits<Alloc>::template rebind_traits<T>::size_type,16,3>>
-	class Str COUNT_IT{
+	class Str{
         private:
             using AlTy=rebind_alloc<Alloc,T>;
             using AlTy_traits=allocator_traits<AlTy>;

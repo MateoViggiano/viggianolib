@@ -33,14 +33,14 @@ namespace mpv{
             }
         public:
             constexpr HandleBase()noexcept:_{}{}
-            HandleBase(const NodePtr node/*node!=nullptr*/,const NodeAlloc& node_alloc)noexcept:node(node),node_alloc(node_alloc){}
-            HandleBase(HandleBase&& other)noexcept:node(other.node){
+            constexpr HandleBase(const NodePtr node/*node!=nullptr*/,const NodeAlloc& node_alloc)noexcept:node(node),node_alloc(node_alloc){}
+            constexpr HandleBase(HandleBase&& other)noexcept:node(other.node){
                 if(node){
                     ::new(&node_alloc) NodeAlloc(mpv::move(other.node_alloc));
                     other.reset();
                 }
             }
-            HandleBase& operator=(HandleBase&& other)noexcept{
+            constexpr HandleBase& operator=(HandleBase&& other)noexcept{
                 if(this==&other) return *this;
                 else if(other.node==nullptr){
                     destroy();
@@ -85,9 +85,9 @@ namespace mpv{
             using key_type=typename Val::key_type;
             using mapped_type=typename Val::mapped_type;
             constexpr NodeHandle()noexcept=default;
-            NodeHandle(NodeHandle&&)noexcept=default;
-            NodeHandle& operator=(NodeHandle&&)noexcept=default;
-            NodeHandle(const NodePtr node,const NodeAlloc& node_alloc)noexcept:base(node,node_alloc){}
+            constexpr NodeHandle(NodeHandle&&)noexcept=default;
+            constexpr NodeHandle& operator=(NodeHandle&&)noexcept=default;
+            constexpr NodeHandle(const NodePtr node,const NodeAlloc& node_alloc)noexcept:base(node,node_alloc){}
 
             constexpr const key_type& key()const noexcept{
                 return this->node->data.key;
@@ -109,8 +109,8 @@ namespace mpv{
             using typename base::NodePtr;
             using key_type=K;
             constexpr NodeHandle()noexcept=default;
-            NodeHandle(NodeHandle&&)noexcept=default;
-            NodeHandle& operator=(NodeHandle&&)noexcept=default;
-            NodeHandle(const NodePtr node,const NodeAlloc& node_alloc)noexcept:base(node,node_alloc){}
+            constexpr NodeHandle(NodeHandle&&)noexcept=default;
+            constexpr NodeHandle& operator=(NodeHandle&&)noexcept=default;
+            constexpr NodeHandle(const NodePtr node,const NodeAlloc& node_alloc)noexcept:base(node,node_alloc){}
     };
 }

@@ -117,7 +117,7 @@ namespace mpv{
 		}
 	};
 	template<typename T,typename Alloc=allocator<T>>
-	class Queue COUNT_IT{
+	class Queue{
 		template<typename> friend struct NodeContainerGuard;
 		private:
 			using Node=Basic_Node<T,typename allocator_traits<Alloc>::void_pointer>;
@@ -356,7 +356,7 @@ namespace mpv{
 		return stream;
 	}
 	template<typename T,typename Alloc=allocator<T>>
-	class Stack COUNT_IT{
+	class Stack{
 		template<typename> friend struct NodeContainerGuard;
 		private:
 			using Node=Basic_Node<T,typename allocator_traits<Alloc>::void_pointer>;

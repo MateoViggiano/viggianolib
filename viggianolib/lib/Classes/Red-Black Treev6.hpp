@@ -59,7 +59,7 @@ namespace mpv{
         }
     };
     template<typename T,typename VoidPtr>
-    struct Tree_Node:public Base_Tree_Node<T,VoidPtr>{
+    struct Tree_Node:public Base_Tree_Node<T,VoidPtr> COUNT_IT_{
         using BaseNodePtr=typename Base_Tree_Node<T,VoidPtr>::BaseNodePtr;
         T data;
         template<typename... Args>
@@ -84,7 +84,7 @@ namespace mpv{
         private:
             BaseNodePtr ptr{};
         public:
-            constexpr Tree_iterator()=default;
+            constexpr Tree_iterator()noexcept=default;
             constexpr Tree_iterator(BaseNodePtr ptr)noexcept:ptr(ptr){}
             constexpr reference operator*()const noexcept{
                 return static_cast<Node&>(*ptr).data;
@@ -172,7 +172,7 @@ namespace mpv{
         private:
             BaseNodePtr ptr{};
         public:
-            constexpr const_Tree_iterator()=default;
+            constexpr const_Tree_iterator()noexcept=default;
             constexpr const_Tree_iterator(BaseNodePtr ptr)noexcept:ptr(ptr){}
             constexpr const_Tree_iterator(Tree_iterator<Types> nonconst_it)noexcept:ptr(nonconst_it.ptr){}
             constexpr reference operator*()const noexcept{
@@ -247,7 +247,7 @@ namespace mpv{
             }
     };
     template<typename Traits>
-    class Tree COUNT_IT{
+    class Tree{
         public:
             using value_type=typename Traits::value_type;
             using key_type=typename Traits::key_type;

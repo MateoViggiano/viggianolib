@@ -5,17 +5,15 @@ namespace mpv{
 		const uintptr_t pos=reinterpret_cast<uintptr_t>(ptr+1);
 		return reinterpret_cast<T*>(pos+(alignof(T)-pos%alignof(T))%alignof(T));
 	}
-	struct CtrlBlock{
+	struct CtrlBlock COUNT_IT{
 #ifdef USE_ATOMIC
 		std::atomic<size_t> sharedCount;
-		std::atomic<size_t> weakCount;
-		// size_t sharedCount;
-		// size_t weakCount;		
+		std::atomic<size_t> weakCount;	
 #else
 		size_t sharedCount;
 		size_t weakCount;
 #endif
-		constexpr CtrlBlock()noexcept:sharedCount(1),weakCount(1){}
+		CtrlBlock()noexcept:sharedCount(1),weakCount(1){}
 		virtual void destroy_object()noexcept=0;
 		virtual void delete_this()noexcept=0;
 

@@ -26,7 +26,7 @@
 #define RETURN_WCSLEN(S) return ::wcslen(S);
 #endif
 
-#if ((defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_)) || defined(_INC_STDIO)) && defined(SHOWCOUNT)
+#if ((defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_)) || defined(_INC_STDIO)) && defined(DEBUG_PRINT)
 #define PUTS(S) puts(S)
 #define PRINTF(...) printf(__VA_ARGS__)
 #else

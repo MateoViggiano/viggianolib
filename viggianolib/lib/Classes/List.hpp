@@ -31,7 +31,7 @@ namespace mpv{
 		}
 	};
 	template<typename T,typename VoidPtr>
-	struct List_Node:public Base_List_Node<T,VoidPtr>{
+	struct List_Node:public Base_List_Node<T,VoidPtr> COUNT_IT_{
 		T data;
 		template<typename... Args>
 		constexpr List_Node(Args&&... args)noexcept(is_nothrow_constructible_v<T,Args...>):data(static_cast<Args&&>(args)...){}
@@ -55,7 +55,7 @@ namespace mpv{
 		private:
 			BaseNodePtr ptr{};
 		public:
-			constexpr List_iterator()=default;
+			constexpr List_iterator()noexcept=default;
 			constexpr List_iterator(BaseNodePtr ptr)noexcept:ptr(ptr){}
 			constexpr reference operator*()const noexcept{
 				return static_cast<Node&>(*ptr).data;
@@ -121,7 +121,7 @@ namespace mpv{
 		private:
 			BaseNodePtr ptr{};
 		public:
-			constexpr const_List_iterator()=default;
+			constexpr const_List_iterator()noexcept=default;
 			constexpr const_List_iterator(BaseNodePtr ptr)noexcept:ptr(ptr){}
 			constexpr const_List_iterator(List_iterator<Types> nonconst_it)noexcept:ptr(nonconst_it.ptr){}
 			constexpr reference operator*()const noexcept{
@@ -174,7 +174,7 @@ namespace mpv{
 			}
 	};
 	template<typename T,typename Alloc=allocator<T>>
-	class List COUNT_IT{
+	class List{
 		private:
 			using AlTy=rebind_alloc<Alloc,T>;
 			using AlTy_traits=allocator_traits<AlTy>;		

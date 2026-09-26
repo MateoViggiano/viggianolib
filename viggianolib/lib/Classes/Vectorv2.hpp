@@ -6,7 +6,7 @@
 namespace mpv{
     template<typename,typename,typename> class HoleVector;
     template<typename T,typename Alloc=allocator<T>,typename realloc_params=params<typename allocator_traits<Alloc>::template rebind_traits<T>::size_type,VECTOR_MMS,2>>
-    class Vector COUNT_IT {static_assert(realloc_params::p1>0,"min_maxLen cannot be less than 1");static_assert(realloc_params::p2>0,"realloc_factor cannot be less than 1");
+    class Vector{static_assert(realloc_params::p1>0,"min_maxLen cannot be less than 1");static_assert(realloc_params::p2>0,"realloc_factor cannot be less than 1");
         private:
             using AlTy=rebind_alloc<Alloc,T>;
             using AlTy_traits=allocator_traits<AlTy>;
@@ -295,7 +295,7 @@ namespace mpv{
                 }
             }
         public:
-            constexpr Vector()noexcept(is_nothrow_default_constructible_v<AlTy>) = default;
+            constexpr Vector()noexcept(is_nothrow_default_constructible_v<AlTy>)=default;
             constexpr explicit Vector(const Alloc& al)noexcept:cp(arg1_tag{},al){}
             constexpr Vector(const Vector& other):cp(arg1_tag{},AlTy_traits::select_on_container_copy_construction(other.alloc),0){
                 this->allocate_and_assign_counted_range(const_pointer(other.array),other.length);

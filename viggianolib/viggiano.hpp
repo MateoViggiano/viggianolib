@@ -48,6 +48,7 @@ namespace mpv{
 #define COUNT_IT_
 #endif
 }
+
 // #define COUNT_IT
 // #define COUNT_IT_
 
@@ -68,13 +69,31 @@ void operator delete[](void*,size_t)noexcept;
 	#endif
 #endif
 #endif //__linux__
-#if (defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_) || defined(_INC_STDIO)) && defined(DEBUG)
-#define DEBUG_PRINT(...) printf(__VA_ARGS__);
-#else
-#define DEBUG_PRINT(...) 
-#endif
 
 #include "lib/def_macros.hpp"
+
+namespace mpv{
+	struct ObjectCounterGuard{
+		long long previous;
+		ObjectCounterGuard():previous(ObjectCounter::use()){}
+		~ObjectCounterGuard()noexcept(false){
+			if(ObjectCounter::use()!=previous){
+				PRINTF("ObjectCounter::use() != previous. ObjectCounter::use() = %lld | previous = %lld",ObjectCounter::use(),previous);
+				throw ObjectCounter::use();
+			}
+		}
+	}inline global_object_counter_guard;
+	struct ObjectCounterGuardZero{
+		ObjectCounterGuardZero()=default;
+		~ObjectCounterGuardZero()noexcept(false){
+			if(ObjectCounter::use()!=0){
+				PRINTF("ObjectCounter::use() != 0. ObjectCounter::use() = %lld",ObjectCounter::use());
+				throw ObjectCounter::use();
+			}
+		}
+	};
+}
+
 #include "lib/metafunctions/metafunctions.hpp"
 #include "lib/functions.hpp"
 #include "lib/iterator_algorighms.hpp"

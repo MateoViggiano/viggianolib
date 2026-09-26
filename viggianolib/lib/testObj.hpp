@@ -1,5 +1,6 @@
 #pragma once
 namespace mpv{
+#ifdef SHOWCOUNT
 	struct testObj COUNT_IT {
 		static long long objCount;
 		int a;
@@ -46,8 +47,8 @@ namespace mpv{
 		}
 		~testObj(){
 			if(array) delete[] this->array;
-			//if(--objCount==0)
-				PRINTF("\nOBJECT COUNTER=%lli\n",--objCount);
+			--objCount;
+			PRINTF("\nOBJECT COUNTER=%lli\n",objCount);
 		}
 		bool operator==(const testObj& other)const{
 			return this->a==other.a;
@@ -71,6 +72,72 @@ namespace mpv{
 			return a;
 		}
 	};
+#else
+	struct testObj COUNT_IT {
+		static long long objCount;
+		int a;
+		int* array;
+		int get(){return a;}
+		testObj() :a(-99),array(new int[10]){
+			objCount++;
+		}
+		testObj(int a):a(a),array(new int[10]){objCount++;
+			for(int i=0;i<10;i++)
+				array[i]=a;
+		}
+		testObj(const testObj& other):a(other.a),array(new int[10]){
+			//if(objCount==8) throw "objCount==8";
+			objCount++;
+			for(int i=0;i<10;i++)
+				array[i]=other.array[i];
+		}
+		testObj(testObj&& other)noexcept:a(other.a){objCount++;
+			this->array=other.array;
+			other.a=-100;
+			other.array=nullptr;
+		}
+		void operator=(const testObj& other){
+			delete[] this->array;
+			this->array=new int[10];
+			for(int i=0;i<10;i++)
+				this->array[i]=other.array[i];
+			this->a=other.a;
+		}
+		void operator=(testObj&& other)noexcept{
+			if(this==&other)return;
+			if(array) delete[] this->array;
+			this->array=other.array;
+			other.array=nullptr;
+			this->a=other.a;
+			other.a=-100;
+		}
+		~testObj(){
+			if(array) delete[] this->array;
+			--objCount;
+		}
+		bool operator==(const testObj& other)const{
+			return this->a==other.a;
+		}
+		bool operator!=(const testObj& other)const{
+			return this->a!=other.a;
+		}
+		bool operator<=(const testObj& other)const{
+			return this->a<=other.a;
+		}
+		bool operator>=(const testObj& other)const{
+			return this->a>=other.a;
+		}
+		bool operator<(const testObj& other)const{
+			return this->a<other.a;
+		}
+		bool operator>(const testObj& other)const{
+			return this->a>other.a;
+		}
+		explicit operator int()const{
+			return a;
+		}
+	};
+#endif
 	inline long long testObj::objCount=0;
 	template<typename Out>
 	Out& operator<<(Out& stream,const testObj& obj){

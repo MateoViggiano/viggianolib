@@ -168,27 +168,6 @@ namespace mpv{
 			}
 		}
 	}
-	template<typename Cont,typename Cont2>
-	void permutaciones_rec(Cont& vec,typename Cont::size_type i,Cont& sol,Cont2& sols){
-		if(i==vec.size()){
-			sols.push_back(sol);
-		}
-		else for(typename Cont::size_type j=i;j<vec.size();j++){
-			sol[i]=vec[j];
-// vec[j] ya fue usado, entonces lo 'escondo' en la posicion i y ademas dejo vec[i] en la posicion j que esta en rango para que la siguiente llamada lo pueda usar
-			swap(vec[i],vec[j]);//							 ^ la cual no se va a usar en la proxima recursion
-			permutaciones_rec(vec,i+1,sol,sols);// y hago recursion en i+1																				todo esto es cuando i!=j, en el caso de 
-			swap(vec[i],vec[j]);// lo deshago para que el vector quede igual																		  i==j (la primera iteracion) vec[i] se hace un 
-		}//																																			auto swap y queda atras en la proxima llamada recursiva
-	}
-	template<template<typename...> class Cont,typename T,typename Al,typename... Args>
-	rebind_t<Cont<T,Al,Args...>,Cont<T,Al,Args...>,rebind_alloc<Al,Cont<T,Al,Args...>>,Args...> generate_permutations(Cont<T,Al,Args...> cont){
-		rebind_t<Cont<T,Al,Args...>,Cont<T,Al,Args...>,rebind_alloc<Al,Cont<T,Al,Args...>>,Args...> sols;
-		Cont<T,Al,Args...> sol(cont.size());
-		permutaciones_rec(cont,typename Cont<T,Al,Args...>::size_type{0},sol,sols);
-		return sols;
-	}
-
     template<typename T>
     constexpr enable_if_t<is_integral_v<T>,T> factorial(T n){
         T res=1;
@@ -208,6 +187,26 @@ namespace mpv{
     constexpr enable_if_t<is_integral_v<T>,T> combinations(T a,T b){
 		return variations(a,b)/factorial(b);
     }
+	template<typename Cont,typename Cont2>
+	void permutaciones_rec(Cont& vec,typename Cont::size_type i,Cont& sol,Cont2& sols){
+		if(i==vec.size()){
+			sols.push_back(sol);
+		}
+		else for(typename Cont::size_type j=i;j<vec.size();j++){
+			sol[i]=vec[j];
+// vec[j] ya fue usado, entonces lo 'escondo' en la posicion i y ademas dejo vec[i] en la posicion j que esta en rango para que la siguiente llamada lo pueda usar
+			swap(vec[i],vec[j]);//							 ^ la cual no se va a usar en la proxima recursion
+			permutaciones_rec(vec,i+1,sol,sols);// y hago recursion en i+1																				todo esto es cuando i!=j, en el caso de 
+			swap(vec[i],vec[j]);// lo deshago para que el vector quede igual																		  i==j (la primera iteracion) vec[i] se hace un 
+		}//																																			auto swap y queda atras en la proxima llamada recursiva
+	}
+	template<template<typename...> class Cont,typename T,typename Al,typename... Args>
+	rebind_t<Cont<T,Al,Args...>,Cont<T,Al,Args...>,rebind_alloc<Al,Cont<T,Al,Args...>>,Args...> generate_permutations(Cont<T,Al,Args...> cont){
+		rebind_t<Cont<T,Al,Args...>,Cont<T,Al,Args...>,rebind_alloc<Al,Cont<T,Al,Args...>>,Args...> sols(factorial(cont.size()));
+		Cont<T,Al,Args...> sol(cont.size());
+		permutaciones_rec(cont,typename Cont<T,Al,Args...>::size_type{0},sol,sols);
+		return sols;
+	}
 	template<typename T,unsigned long long Precision=100000000000000>
 	constexpr bool eq(T x,T y){
 		if constexpr(is_floating_point_v<T>) return x-y>=0? (x-y)<1./Precision : (x-y)>-1./Precision;
