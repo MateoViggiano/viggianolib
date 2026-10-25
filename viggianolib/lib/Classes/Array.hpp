@@ -143,8 +143,8 @@ template<typename T,size_t len>
                 new_array[2]=(*this)[0]*other[1]-other[0]*(*this)[1];
                 return new_array;
             }
-            template<size_t s=length,typename=enable_if_t<s==3>>
-            constexpr void operator%=(const Array<T,3>& other)noexcept(is_nothrow_move_constructible_v<Array<T,3>> && noexcept(mpv::declval<Array&>()[0]=other[1]*other[2]-other[1]*other[2])){
+            template<size_t s=length,typename=enable_if_t<s==3 && s==length>>
+            constexpr void operator%=(const Array<T,3>& other)noexcept(is_nothrow_default_constructible_v<T> && is_nothrow_move_assignable_v<Array<T,3>> && noexcept(mpv::declval<Array&>()[0]=other[1]*other[2]-other[1]*other[2])){
                 Array<T,3> aux;
                 aux[0]=(*this)[1]*other[2]-other[1]*(*this)[2];
                 aux[1]=other[0]*(*this)[2]-(*this)[0]*other[2];

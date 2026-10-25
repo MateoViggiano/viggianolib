@@ -170,7 +170,7 @@ namespace mpv{
 	struct Range{
 		T start,stop;
 		U step;
-		constexpr Range()noexcept:start{},stop{},step{}{}
+		constexpr Range()noexcept:start{},stop{},step(1){}
 		constexpr Range(T start,T stop,U step)noexcept(is_nothrow_copy_constructible_v<T> && is_nothrow_copy_constructible_v<U>):start(start),stop(stop),step(step){}
 		constexpr Range(T start,T stop)noexcept(is_nothrow_copy_constructible_v<T> && is_nothrow_copy_constructible_v<U>):start(start),stop(stop),step(1){}
 		constexpr Range(T stop)noexcept(is_nothrow_copy_constructible_v<T> && is_nothrow_copy_constructible_v<U>):start(0),stop(stop),step(1){}

@@ -21,7 +21,7 @@ namespace mpv{
             	mpv::copy(this->elems,ilist.begin(),ilist.end());
             }
             constexpr size_t size()noexcept{
-                return length;
+                return rows;
             }
             constexpr void fill(T val)noexcept(noexcept((*this)[0][0]=val)){
                 for(size_t i=0;i<R;i++){
