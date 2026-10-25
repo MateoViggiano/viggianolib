@@ -29,7 +29,7 @@ namespace mpv{
 		return (c>=65 && c<=90)? c+32 : c;
 	}
 	template<typename Char>
-	constexpr size_t parseUint(const Char* s){
+	constexpr size_t parseUint(const Char* s)noexcept{
 		size_t num=0;
 		size_t i=0;
 		while(s[i]==' ' || s[i]=='\n' || s[i]=='\r' || s[i]=='\t')i++;
@@ -40,7 +40,7 @@ namespace mpv{
 		return num;
 	}
 	template<typename Char>
-	constexpr ssize_t parseInt(const Char* s){
+	constexpr ssize_t parseInt(const Char* s)noexcept{
 		ssize_t num=0;
 		size_t i=0;
 		bool neg=false;
@@ -56,7 +56,7 @@ namespace mpv{
 		return neg ? -num : num;
 	}
 	template<typename Char>
-	constexpr bool is_float_convertible(const Char* s){
+	constexpr bool is_float_convertible(const Char* s)noexcept{
 		if(*s=='\0') return false;
 		if(*s=='+' || *s=='-') s++;
 		if(*s=='e' || *s=='E') return false;
@@ -83,7 +83,7 @@ namespace mpv{
 		return s-1!=e_pos;	//Checks if the dot is not the last character
 	}
 	template<typename Char>
-	constexpr long double parseFloat(const Char* s){
+	constexpr long double parseFloat(const Char* s)noexcept{
 		long double num=0;
 		size_t i=0;
 		bool neg=false;
@@ -118,7 +118,7 @@ namespace mpv{
 		}
 		return neg ? -num : num;
 	}
-	inline constexpr char to_char(int digit){
-		return digit<10? digit+48:digit+55;
+	inline constexpr char to_char(int digit)noexcept{
+		return digit<10? static_cast<char>(digit+48):static_cast<char>(digit+55);
 	}
 }

@@ -9,9 +9,21 @@ namespace mpv{
 #ifdef USE_ATOMIC
 		std::atomic<size_t> sharedCount;
 		std::atomic<size_t> weakCount;	
+#define INCSHARED sharedCount.fetch_add(1,std::memory_order_relaxed)
+#define DECSHARED sharedCount.fetch_sub(1,std::memory_order_release)
+#define INCWEAK weakCount.fetch_add(1,std::memory_order_relaxed)
+#define DECWEAK weakCount.fetch_sub(1,std::memory_order_release)
+#define LOADSHARED sharedCount.load(std::memory_order_relaxed)
+#define THREADFENCEACQ std::atomic_thread_fence(std::memory_order_acquire)
 #else
 		size_t sharedCount;
 		size_t weakCount;
+#define INCSHARED sharedCount++
+#define DECSHARED sharedCount--
+#define INCWEAK weakCount++
+#define DECWEAK weakCount--
+#define LOADSHARED sharedCount
+#define THREADFENCEACQ 
 #endif
 		CtrlBlock()noexcept:sharedCount(1),weakCount(1){}
 		virtual void destroy_object()noexcept=0;
@@ -203,14 +215,17 @@ namespace mpv{
 				allocation_temp_owner.ptr=nullptr;
 			} 
 			constexpr sPtr(CtrlBlock* ctrl_block,remove_extent_t<T>* ptr)noexcept:PtrBase<T>(ptr),ctrl_block(ctrl_block){// Solo las funciones de casteo pueden usar este constructor
-				if(ctrl_block!=nullptr) ctrl_block->sharedCount++;
+				if(ctrl_block!=nullptr) ctrl_block->INCSHARED;
 			}
 			constexpr void release()noexcept{
 				if(this->ctrl_block!=nullptr){//	El puntero actual deja de apuntar a la memoria de la que era dueño, si esta no tiene mas dueños se libera
-					if((--this->ctrl_block->sharedCount)==0){	//Si sharedCount llega a 0 borra la memoria a la que apunta
+					if(this->ctrl_block->DECSHARED==1){	//Si sharedCount llega a 0 borra la memoria a la que apunta
+						THREADFENCEACQ;
 						this->ctrl_block->destroy_object();
-						if(--this->ctrl_block->weakCount==0)	//Solo borra el contador de referencias si weakCount tambien es 0. En caso de que 
-							this->ctrl_block->delete_this();		//weakCount no sea 0, ctrl_block no se borrara y el destructor del wPtr que lo mantiene vivo se ocupara de esto
+						if(this->ctrl_block->DECWEAK==1){	//Solo borra el contador de referencias si weakCount tambien es 0. En caso de que 
+							THREADFENCEACQ;
+							this->ctrl_block->delete_this();//weakCount no sea 0, ctrl_block no se borrara y el destructor del wPtr que lo mantiene vivo se ocupara de esto
+						}
 					}
 				}
 				this->data=nullptr;
@@ -220,13 +235,17 @@ namespace mpv{
 			using element_type=typename PtrBase<T>::element_type;
 			template<typename U>
 			constexpr sPtr(const wPtr<U>& weakPtr)noexcept:ctrl_block(weakPtr.ctrl_block){	//construye un puntero fuerte en base a uno debil
-#ifdef USE_ATOMIC	// hay que implementar la version atimic
-				if(weakPtr.ctrl_block==nullptr || weakPtr.ctrl_block->sharedCount==0)
-					this->ctrl_block=nullptr;
-				else{
-					this->ctrl_block->sharedCount++;
-					this->data=weakPtr.data;
-				} 
+#ifdef USE_ATOMIC
+				if(weakPtr.ctrl_block!=nullptr){
+					size_t sh_count=weakPtr.ctrl_block->sharedCount.load(std::memory_order_relaxed);// el ultimo sPtr que es owner del ctrl_block podria desaparecer despues de esta lectura, por eso es necesario el CAS
+					while(sh_count){
+						if(weakPtr.ctrl_block->sharedCount.compare_exchange_weak(sh_count,sh_count+1,std::memory_order_relaxed)){
+							this->data=weakPtr.data;
+							return;
+						}
+					}
+				}
+				this->ctrl_block=nullptr;
 #else
 				if(weakPtr.ctrl_block==nullptr || weakPtr.ctrl_block->sharedCount==0)
 					this->ctrl_block=nullptr;
@@ -260,11 +279,11 @@ namespace mpv{
 				}
 			}
 			constexpr sPtr(const sPtr& other)noexcept:PtrBase<T>(other.data),ctrl_block(other.ctrl_block){//Si no declaro este constructor el compilador lo declara de forma implicita y prefiere llamarlo antes instanciar un template, lo que genera comportamiento indefinido.
-				if(this->ctrl_block!=nullptr) this->ctrl_block->sharedCount++;
+				if(this->ctrl_block!=nullptr) this->ctrl_block->INCSHARED;
 			}
 			template<typename U,enable_if_t<have_same_extent_v<T,U> || (is_same_v<remove_extent_t<T>,remove_extent_t<U>> && is_no_size_array_v<T> && is_size_array_v<U>),int> = 0>
 			constexpr sPtr(const sPtr<U>& other)noexcept:PtrBase<T>(other.data),ctrl_block(other.ctrl_block){
-				if(this->ctrl_block!=nullptr) this->ctrl_block->sharedCount++;
+				if(this->ctrl_block!=nullptr) this->ctrl_block->INCSHARED;
 			}
 			constexpr sPtr(sPtr&& other)noexcept:PtrBase<T>(other.data),ctrl_block(other.ctrl_block){
 				other.data=nullptr;
@@ -278,7 +297,7 @@ namespace mpv{
 			template<typename U>
 			constexpr sPtr(const sPtr<U>& other,remove_extent_t<T>* alias_ptr)noexcept:PtrBase<T>(nullptr),ctrl_block(other.ctrl_block){
 				if(this->ctrl_block!=nullptr){
-					this->ctrl_block->sharedCount++;
+					this->ctrl_block->INCSHARED;
 					this->data=alias_ptr;
 				}
 			}
@@ -328,7 +347,7 @@ namespace mpv{
 			}
 			constexpr sPtr& operator=(const sPtr& other)noexcept{	//Con este pasa lo mismo que con el constructor de copia, asi que tambien lo tengo que declarar
 				if(this==&other) return *this;
-				if(other.ctrl_block!=nullptr) other.ctrl_block->sharedCount++;				
+				if(other.ctrl_block!=nullptr) other.ctrl_block->INCSHARED;				
 				this->release();
 				this->data=other.data;
 				this->ctrl_block=other.ctrl_block;
@@ -336,7 +355,7 @@ namespace mpv{
 			}
 			template<typename U,enable_if_t<have_same_extent_v<T,U> || (is_same_v<remove_extent_t<T>,remove_extent_t<U>> && is_no_size_array_v<T> && is_size_array_v<U>),int> = 0>
 			constexpr sPtr& operator=(const sPtr<U>& other)noexcept{
-				if(other.ctrl_block!=nullptr) other.ctrl_block->sharedCount++;
+				if(other.ctrl_block!=nullptr) other.ctrl_block->INCSHARED;
 				this->release();
 				this->data=other.data;
 				this->ctrl_block=other.ctrl_block;
@@ -361,13 +380,16 @@ namespace mpv{
 				return *this;
 			}
 			constexpr size_t currentOwners()const noexcept{
-				return this->ctrl_block==nullptr? 0 : (size_t)this->ctrl_block->sharedCount;
+				return this->ctrl_block==nullptr? 0 : this->ctrl_block->LOADSHARED;
+			}
+			constexpr void reset()noexcept{
+				release();
 			}
 			~sPtr()noexcept{
 				release();
 			}
-			template<typename u> friend class sPtr;
-			template<typename u> friend class wPtr;
+			template<typename> friend class sPtr;
+			template<typename> friend class wPtr;
 			template<typename t,typename u> friend constexpr enable_if_t<have_same_extent_v<t,u>,sPtr<t>> static_ptr_cast(const sPtr<u>&)noexcept;
 			template<typename t,typename u> friend constexpr enable_if_t<have_same_extent_v<t,u>,sPtr<t>> reinterpret_ptr_cast(const sPtr<u>&)noexcept;
 			template<typename t,typename u> friend constexpr enable_if_t<have_same_extent_v<t,u>,sPtr<t>> const_ptr_cast(const sPtr<u>&)noexcept;

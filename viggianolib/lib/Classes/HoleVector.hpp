@@ -235,6 +235,8 @@ namespace mpv{
 
             template<typename It, enable_if_t<is_iterator_v<It> && !is_specialization_v<remove_cvref_t<iter_ref_t<It>>,Optional>,int> = 0>
             constexpr HoleVector(It first,It last,const Alloc& al=Alloc{}):vec(first,last,al),hole_stack(al){}
+			template<typename Iterable,typename=enable_if_t<is_iterable_v<Iterable> && !is_same_v<remove_cvref_t<Iterable>,HoleVector>>>
+            constexpr explicit HoleVector(Iterable&& cont,const Alloc& al=Alloc()):vec(static_cast<Iterable&&>(cont),al),hole_stack(al){}
             constexpr HoleVector(std::initializer_list<value_type> initlist,const Alloc& al=Alloc()):vec(initlist.begin(),initlist.end(),al),hole_stack(al){}
 			constexpr void copy_dist(const HoleVector& other){
 				if(this==&other){

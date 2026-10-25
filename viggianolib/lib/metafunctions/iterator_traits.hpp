@@ -147,15 +147,10 @@ namespace mpv{
     }
     template<typename T,typename=void> struct is_iterable:is_size_array<remove_reference_t<T>>{};
     template<typename T> struct is_iterable<T,void_t<decltype(begin(declval<T&>())!=end(declval<T&>())),decltype(++begin(declval<T&>())),decltype(*begin(declval<T&>()))>>
-        :conjunction<is_iterator<decltype(begin(declval<T&>()))>,is_iterator<decltype(end(declval<T&>()))>,is_iterator<remove_reference_t<decltype(++begin(declval<T&>()))>>>{};
+        :conjunction<is_iterator<decltype(begin(declval<T&>()))>,is_iterator<remove_reference_t<decltype(++begin(declval<T&>()))>>>{};
     template<typename T> constexpr bool is_iterable_v=is_iterable<T>::value;
-    
-    template<typename T,typename=void> struct is_range:is_size_array<remove_reference_t<T>>{};
-    template<typename T> struct is_range<T,void_t<decltype(begin(declval<T&>())),decltype(end(declval<T&>()))>>:true_type{};
-    template<typename T> constexpr bool is_range_v=is_range<T>::value;
 
     template<typename T,typename=void> struct has_size:is_size_array<remove_reference_t<T>>{};
     template<typename T> struct has_size<T,void_t<decltype(size(declval<T&>()))>>:true_type{};
     template<typename T> constexpr bool has_size_v=has_size<T>::value;
-    template<typename T> constexpr bool is_sized_range=is_range_v<T> && has_size_v<T>;
 }

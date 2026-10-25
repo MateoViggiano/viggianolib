@@ -108,7 +108,13 @@ namespace mpv{
 				other.data=nullptr;
 				return *this;
 			}
-			constexpr pointer drop()noexcept{
+			constexpr void reset()noexcept{
+				if(this->data!=nullptr){
+					this->get_val()(this->data);
+					this->data=nullptr;
+				}
+			}
+			[[nodiscard]]constexpr pointer drop()noexcept{
 				pointer p=this->data;
 				this->data=nullptr;
 				return p;

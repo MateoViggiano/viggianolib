@@ -78,7 +78,7 @@ namespace mpv{
 		ObjectCounterGuard():previous(ObjectCounter::use()){}
 		~ObjectCounterGuard()noexcept(false){
 			if(ObjectCounter::use()!=previous){
-				PRINTF("ObjectCounter::use() != previous. ObjectCounter::use() = %lld | previous = %lld",ObjectCounter::use(),previous);
+				PRINTF("ObjectCounter::use() != previous. ObjectCounter::use() = %lld | previous = %lld\n",ObjectCounter::use(),previous);
 				throw ObjectCounter::use();
 			}
 		}
@@ -87,7 +87,7 @@ namespace mpv{
 		ObjectCounterGuardZero()=default;
 		~ObjectCounterGuardZero()noexcept(false){
 			if(ObjectCounter::use()!=0){
-				PRINTF("ObjectCounter::use() != 0. ObjectCounter::use() = %lld",ObjectCounter::use());
+				PRINTF("ObjectCounter::use() != 0. ObjectCounter::use() = %lld\n",ObjectCounter::use());
 				throw ObjectCounter::use();
 			}
 		}

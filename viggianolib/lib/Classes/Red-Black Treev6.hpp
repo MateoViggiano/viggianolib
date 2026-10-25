@@ -768,6 +768,14 @@ namespace mpv{
                 for(const_reference v:ilist) insert(v);
                 guard.call_deleter=false;
             }
+            template<typename Iterable,typename=enable_if_t<is_iterable_v<Iterable> && !is_same_v<remove_cvref_t<Iterable>,Tree>>>
+            constexpr explicit Tree(Iterable&& cont,const key_compare& comp=key_compare{},const Alloc& al=Alloc()):ct(arg1and2_tag{},comp,al){
+                root=left_most=right_most=sent;
+                TreeDeleterFunc d;
+                TemporaryOwnerDel<Tree&,TreeDeleterFunc> guard(*this,d);
+                for(const auto& v:cont) insert(v);
+                guard.call_deleter=false;
+            }
             constexpr Tree(const Tree& other):ct(arg1and2_tag{},other.ct.getV1(),AlNode_traits::select_on_container_copy_construction(other.alloc)){
                 root=left_most=right_most=sent;
                 TreeDeleterFunc d;

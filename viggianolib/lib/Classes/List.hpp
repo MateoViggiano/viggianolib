@@ -414,8 +414,8 @@ namespace mpv{
 				Guard(const Guard&)=delete;
 				Guard& operator=(const Guard&)=delete;
 				constexpr Guard(AlNode& al)noexcept:al(al){}
-				template<typename It>
-				constexpr Guard(AlNode& al,It first,It last):al(al){
+				template<typename It1,typename It2>
+				constexpr Guard(AlNode& al,It1 first,It2 last):al(al){
 					Guard guard(al);
 					if(first!=last){
 						guard.head=guard.tail=guard.create_node(*first++);
@@ -589,6 +589,13 @@ namespace mpv{
 				this->HEAD=this->NULLPTR;
 				this->TAIL=this->NULLPTR;
 				Guard guard(this->alloc,initlist.begin(),initlist.end());
+				length=guard.transfer_at(HEAD);
+			}
+            template<typename Iterable,typename=enable_if_t<is_iterable_v<Iterable> && !is_same_v<remove_cvref_t<Iterable>,List>>>
+            constexpr explicit List(Iterable&& cont,const Alloc& al=Alloc()):cp(arg1_tag{},al){
+				this->HEAD=this->NULLPTR;
+				this->TAIL=this->NULLPTR;
+				Guard guard(this->alloc,mpv::begin(cont),mpv::end(cont));
 				length=guard.transfer_at(HEAD);
 			}
 			constexpr List& operator=(const List& other){										//Operador de copia(optimizado)

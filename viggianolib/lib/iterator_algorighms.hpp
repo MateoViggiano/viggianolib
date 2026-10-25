@@ -476,7 +476,7 @@ namespace mpv{
 		}
 	}
 	template<typename Alloc,typename FwdIt,typename Size>
-	constexpr void destroy_n(Alloc& alloc,FwdIt first,Size size)noexcept(is_trivially_destructible_v<iter_value_t<FwdIt>> && Uses_default_destroy_v<Alloc,decltype(unfancy(first++))>){
+	constexpr void destroy_n(Alloc& alloc,FwdIt first,[[maybe_unused]] Size size)noexcept(is_trivially_destructible_v<iter_value_t<FwdIt>> && Uses_default_destroy_v<Alloc,decltype(unfancy(first++))>){
 		if constexpr(!(is_trivially_destructible_v<iter_value_t<FwdIt>> && Uses_default_destroy_v<Alloc,decltype(unfancy(first++))>)){
 			if constexpr(is_random_access_iterator_v<FwdIt>){
 				first+=size;

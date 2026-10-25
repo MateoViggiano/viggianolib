@@ -96,7 +96,6 @@ namespace mpv{
                 Guard(const Guard&)=delete;
                 Guard& operator=(const Guard&)=delete;
             };
-            constexpr Vector(reserve_tag,size_type max_length,const Alloc& al):cp(arg1_tag{},al,max_length),array(max_length>0? AlTy_traits::allocate(alloc,max_length) : nullptr){}
             constexpr void destroy_and_free()noexcept{
                 if(array){
                     destroy_n(this->alloc,array,length);
@@ -171,7 +170,7 @@ namespace mpv{
             }
             template<typename It>
             constexpr iterator insert_counted_range(const_iterator pos,It first,size_type count){// can't insert into itself
-                size_type index=pos-begin();
+                size_type index(static_cast<size_type>(pos-begin()));
                 if(length+count>maxLen){
                     Guard guard(alloc,(length+count)*realloc_factor);
                     copy_construct_n(alloc,guard.array+index,first,count);
@@ -224,7 +223,7 @@ namespace mpv{
             }
             template<typename It>
             constexpr iterator move_insert_counted_range(const_iterator pos,It first,size_type count){
-                size_type index=pos-begin();
+                size_type index(static_cast<size_type>(pos-begin()));
                 if(length+count>maxLen){
                     Guard guard(alloc,(length+count)*realloc_factor);
                     move_construct_n(alloc,guard.array+index,first,count);
@@ -295,6 +294,7 @@ namespace mpv{
                 }
             }
         public:
+            constexpr Vector(reserve_tag,size_type max_length,const Alloc& al=Alloc{}):cp(arg1_tag{},al,max_length),array(max_length>0? AlTy_traits::allocate(alloc,max_length) : nullptr){}
             constexpr Vector()noexcept(is_nothrow_default_constructible_v<AlTy>)=default;
             constexpr explicit Vector(const Alloc& al)noexcept:cp(arg1_tag{},al){}
             constexpr Vector(const Vector& other):cp(arg1_tag{},AlTy_traits::select_on_container_copy_construction(other.alloc),0){
@@ -345,6 +345,21 @@ namespace mpv{
             }
             constexpr Vector(std::initializer_list<value_type> initlist,const Alloc& al=Alloc()):cp(arg1_tag{},al,0){
                 this->allocate_and_assign_counted_range(initlist.begin(),initlist.size());
+            }
+            template<typename Iterable,typename=enable_if_t<is_iterable_v<Iterable> && !is_same_v<remove_cvref_t<Iterable>,Vector>>>
+            constexpr explicit Vector(Iterable&& cont,const Alloc& al=Alloc()):cp(arg1_tag{},al,0){
+                if constexpr(has_size_v<Iterable>){
+                    this->allocate_and_assign_counted_range(mpv::begin(cont),mpv::size(cont));
+                }
+                else if constexpr(is_forward_iterator_v<decltype(mpv::begin(cont))>){
+                    this->allocate_and_assign_counted_range(mpv::begin(cont),distance(mpv::begin(cont),mpv::end(cont)));
+                }
+                else{
+                    auto start=mpv::begin(cont);
+                    Guard guard(alloc);
+                    while(start!=mpv::end(cont)) guard.emplace_back(*start++);
+                    guard.transfer_to(*this);
+                }
             }
             constexpr Vector& operator=(const Vector& other){
                 if(this==&other) return *this;

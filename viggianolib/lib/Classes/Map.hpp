@@ -4,11 +4,11 @@ namespace mpv{
     struct MapPair COUNT_IT{
         using mapped_type=valT;
         using key_type=keyT;
-        mapped_type val{};
         const key_type key;
+        mapped_type val{};
         MapPair()=delete;
         template<typename kT,typename vT,enable_if_t<is_convertible_v<kT,key_type> && is_convertible_v<vT,mapped_type>>* = nullptr>
-        constexpr MapPair(kT&& key,vT&& val)noexcept(is_nothrow_constructible_v<mapped_type,vT> && is_nothrow_constructible_v<key_type,kT>):val(static_cast<vT&&>(val)),key(static_cast<kT&&>(key)){}
+        constexpr MapPair(kT&& key,vT&& val)noexcept(is_nothrow_constructible_v<mapped_type,vT> && is_nothrow_constructible_v<key_type,kT>):key(static_cast<kT&&>(key)),val(static_cast<vT&&>(val)){}
         template<typename kT,enable_if_t<is_convertible_v<kT,key_type>>* = nullptr>
         constexpr explicit MapPair(kT&& key)noexcept(is_nothrow_default_constructible_v<mapped_type> && is_nothrow_constructible_v<key_type,kT>):key(static_cast<kT&&>(key)){}
         constexpr bool operator==(const MapPair& other)const noexcept(noexcept(fake_copy_init<bool>(this->key==other.key && this->val==other.val))){
